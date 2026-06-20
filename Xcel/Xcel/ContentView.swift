@@ -1,61 +1,52 @@
-//
-//  ContentView.swift
-//  Xcel
-//
-//  Created by Paul Efrim on 6/20/26.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: \Series.weekStart, order: .reverse) private var allSeries: [Series]
+
+    var currentSeries: Series? {
+        let monday = Series.mondayOf(Date())
+        return allSeries.first { Calendar.current.isDate($0.weekStart, inSameDayAs: monday) }
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+        NavigationStack {
+            HomeView(series: currentSeries)
+        }
+        .onAppear {
+            ensureCurrentSeries()
+            processMissedGames()
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+    private func ensureCurrentSeries() {
+        guard currentSeries == nil else { return }
+        let monday = Series.mondayOf(Date())
+        let series = Series(weekStart: monday)
+        modelContext.insert(series)
+
+        for offset in 0..<7 {
+            let gameDate = Calendar.current.date(byAdding: .day, value: offset, to: monday)!
+            let game = Game(date: gameDate, gameNumber: offset + 1)
+            series.games.append(game)
+            modelContext.insert(game)
         }
+        try? modelContext.save()
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    private func processMissedGames() {
+        guard let series = currentSeries else { return }
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        var changed = false
+        for game in series.games where game.isMissed {
+            let gameDay = Calendar.current.startOfDay(for: game.date)
+            if gameDay < todayStart {
+                game.verdict = .loss
+                game.verdictOneLiner = "Didn't show up. Automatic L."
+                changed = true
             }
         }
+        if changed { try? modelContext.save() }
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
