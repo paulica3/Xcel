@@ -42,6 +42,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Missing a day = automatic Loss (no excuses, high stakes)
 - Series scoreline displayed at all times (e.g. "3-2 — Game 6 tonight")
 - A loss is framed within the series context, never as a standalone life judgment
+- First team to 4 wins takes the series
+- **Dynamic difficulty** (`JudgeStance` in JudgeService): down 2+ games triggers "Home Court Advantage" (judge eases up, honest effort earns a W); 3-0 lead triggers "Raise the Bar" (judge gets stricter). Goal: users win more often than not, but a runaway lead gets challenged.
+
+---
+
+## App Structure & Navigation
+
+- **Home is a landing page**, not the game. Users do NOT jump straight into the series. Home → "Enter the arena" → `SeriesView` (scoreboard).
+- `Theme.swift` — `AppSettings` (`@Observable`, injected via `.environment`, persisted to UserDefaults) holds the user's accent color + name. `AccentTheme` enum = 8 neon colors (green, orange, blue, pink, purple, cyan, red, gold). All views read `settings.accent.color`; never hardcode the accent.
+- `BrandingViews.swift` — `WavingTitle` (accent sweeps across the wordmark) and `XtinctBadge` ("POWERED BY XTINCT AI" with subtle chaotic jitter). **XTINCT AI is the company building the app** — keep the attribution.
+- Account + name + color picker live in `AccountView` (functional); notifications/photo/premium are placeholder rows.
 
 ---
 
@@ -59,6 +70,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - AI Commentator Personalities: Hype-man, Brutal Analyst, Calm Vet Coach
 - Season stats & Career page (all-time record, streaks, best comeback)
 - End-of-week AI recap (optionally read aloud in broadcast style)
+- **Intention checklist + photo proof** (planned): AI turns the morning intention into a checklist; user checks off items and attaches a Photos-library image. App reads the photo's EXIF date to confirm it's same-day, and uses on-device Vision/AI to check the image matches the intention. Needs PhotoKit + Vision + EXIF — substantial; design as its own phase.
 
 ### League (add-on or higher tier)
 - Conferences with friends

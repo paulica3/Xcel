@@ -37,15 +37,11 @@ struct ContentView: View {
 
     private func processMissedGames() {
         guard let series = currentSeries else { return }
-        let todayStart = Calendar.current.startOfDay(for: Date())
         var changed = false
-        for game in series.games where game.isMissed {
-            let gameDay = Calendar.current.startOfDay(for: game.date)
-            if gameDay < todayStart {
-                game.verdict = .loss
-                game.verdictOneLiner = "Didn't show up. Automatic L."
-                changed = true
-            }
+        for game in series.games where game.isMissed(seriesCreatedAt: series.createdAt) {
+            game.verdict = .loss
+            game.verdictOneLiner = "Didn't show up. Automatic L."
+            changed = true
         }
         if changed { try? modelContext.save() }
     }

@@ -1,175 +1,151 @@
 import SwiftUI
 
-extension Color {
-    static let neonGreen = Color(red: 0.224, green: 1.0, blue: 0.078)
-    static let arenaBlack = Color(white: 0.04)
-}
-
 struct HomeView: View {
     let series: Series?
-    @State private var showHistory = false
-    @State private var showEntry = false
+    @Environment(AppSettings.self) private var settings
 
-    var todayGame: Game? { series?.games.first { $0.isToday } }
+    @State private var showAccount = false
+    @State private var showFeedback = false
+    @State private var quote = Quotes.random()
+
+    private var accent: Color { settings.accent.color }
+    private var todayGame: Game? { series?.games.first { $0.isToday } }
 
     var body: some View {
         ZStack {
             Color.arenaBlack.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                header
+                topBar
                 Spacer()
-                scoreboard
+                welcome
                 Spacer()
-                ctaSection
+                seriesButton
+                Spacer()
+                bottomBar
             }
+            .padding(.horizontal, 24)
         }
         .navigationBarHidden(true)
-        .sheet(isPresented: $showHistory) { HistoryView() }
-        .sheet(isPresented: $showEntry) {
-            if let game = todayGame {
-                NavigationStack {
-                    EntryView(game: game, onComplete: { showEntry = false })
+        .onAppear { quote = Quotes.random() }
+        .sheet(isPresented: $showAccount) { AccountView() }
+        .alert("Feedback", isPresented: $showFeedback) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Feedback is coming soon. Thanks for wanting to help shape Xcel.")
+        }
+    }
+
+    // MARK: Top — wordmark + account avatar
+
+    private var topBar: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Spacer()
+                Button { showAccount = true } label: {
+                    Circle()
+                        .fill(Color(white: 0.1))
+                        .frame(width: 40, height: 40)
+                        .overlay(Circle().stroke(accent.opacity(0.6), lineWidth: 1.5))
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 17))
+                                .foregroundStyle(Color(white: 0.55))
+                        )
                 }
             }
+
+            WavingTitle(text: "XCEL", accent: accent)
+            XtinctBadge(accent: accent)
+        }
+        .padding(.top, 16)
+    }
+
+    // MARK: Center — greeting + quote
+
+    private var welcome: some View {
+        VStack(spacing: 18) {
+            Text("Welcome back,")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Color(white: 0.45))
+            + Text(" \(settings.userName)")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text(quote)
+                .font(.system(size: 15, weight: .medium))
+                .italic()
+                .foregroundStyle(Color(white: 0.5))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
         }
     }
 
-    private var header: some View {
-        HStack {
-            Text("XCEL")
-                .font(.system(size: 22, weight: .black))
-                .foregroundStyle(Color.neonGreen)
-            Spacer()
-            Button { showHistory = true } label: {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color(white: 0.4))
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 20)
-    }
+    // MARK: Series status entry point
 
     @ViewBuilder
-    private var scoreboard: some View {
+    private var seriesButton: some View {
         if let series {
-            VStack(spacing: 12) {
-                if let game = todayGame {
-                    Text("GAME \(game.gameNumber) OF 7")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color(white: 0.35))
-                        .kerning(2.5)
+            NavigationLink {
+                SeriesView(series: series)
+            } label: {
+                VStack(spacing: 10) {
+                    Text(statusHeadline(series))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .kerning(1.5)
+
+                    HStack(spacing: 16) {
+                        Text("\(series.wins)")
+                            .foregroundStyle(accent)
+                        Text("–")
+                            .foregroundStyle(Color(white: 0.25))
+                        Text("\(series.losses)")
+                            .foregroundStyle(Color(white: 0.5))
+                    }
+                    .font(.system(size: 52, weight: .black))
+                    .monospacedDigit()
+
+                    Text("Enter the arena")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(white: 0.4))
                 }
-
-                HStack(alignment: .center, spacing: 28) {
-                    scoreColumn(value: series.wins, label: "W", color: .neonGreen)
-                    Text("–")
-                        .font(.system(size: 44, weight: .thin))
-                        .foregroundStyle(Color(white: 0.25))
-                    scoreColumn(value: series.losses, label: "L", color: Color(white: 0.4))
-                }
-                .padding(.vertical, 8)
-
-                Text(statusLine(for: series))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(white: 0.38))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-
-                gameDots(series: series)
-                    .padding(.top, 8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+                .background(Color(white: 0.07))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(accent.opacity(0.25), lineWidth: 1)
+                )
             }
         }
     }
 
-    private func scoreColumn(value: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(value)")
-                .font(.system(size: 88, weight: .black))
-                .foregroundStyle(color)
-                .monospacedDigit()
-            Text(label)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(color.opacity(0.55))
-                .kerning(2)
-        }
-    }
+    // MARK: Bottom — feedback
 
-    private func gameDots(series: Series) -> some View {
-        let sorted = series.games.sorted { $0.gameNumber < $1.gameNumber }
-        return HStack(spacing: 6) {
-            ForEach(sorted) { game in
-                Circle()
-                    .frame(width: 8, height: 8)
-                    .foregroundStyle(dotColor(for: game))
-            }
-        }
-    }
-
-    private func dotColor(for game: Game) -> Color {
-        switch game.verdict {
-        case .win: return .neonGreen
-        case .loss: return Color(white: 0.25)
-        case .pending: return game.isToday ? Color(white: 0.55) : Color(white: 0.13)
-        }
-    }
-
-    @ViewBuilder
-    private var ctaSection: some View {
-        if let game = todayGame {
-            Button { showEntry = true } label: {
-                ctaLabel(for: game)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(ctaBackground(for: game))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(game.verdict != .pending)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 52)
-        }
-    }
-
-    @ViewBuilder
-    private func ctaLabel(for game: Game) -> some View {
-        switch game.verdict {
-        case .pending:
-            Text(game.morningIntention.isEmpty ? "Set intention — Game \(game.gameNumber)" : "Log Game \(game.gameNumber)")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.black)
-        case .win:
+    private var bottomBar: some View {
+        Button { showFeedback = true } label: {
             HStack(spacing: 6) {
-                Image(systemName: "checkmark")
-                Text("Game \(game.gameNumber) — W")
+                Image(systemName: "paperplane")
+                Text("Send feedback")
             }
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(Color.neonGreen)
-        case .loss:
-            HStack(spacing: 6) {
-                Image(systemName: "xmark")
-                Text("Game \(game.gameNumber) — L")
-            }
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(Color(white: 0.45))
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Color(white: 0.4))
         }
+        .padding(.bottom, 32)
     }
 
-    private func ctaBackground(for game: Game) -> Color {
-        game.verdict == .pending ? .neonGreen : Color(white: 0.1)
-    }
-
-    private func statusLine(for series: Series) -> String {
-        let remaining = 7 - series.judgedCount
+    private func statusHeadline(_ series: Series) -> String {
         switch series.seriesResult {
-        case .won: return "Series W · \(series.wins)–\(series.losses)"
-        case .lost: return "Series L · \(series.wins)–\(series.losses)"
+        case .won:  return "SERIES WON"
+        case .lost: return "SERIES LOST"
         case .inProgress:
-            guard series.judgedCount > 0 else { return "7 games. 1 week. Let's go." }
-            let games = remaining == 1 ? "1 game left" : "\(remaining) games left"
-            if series.wins > series.losses { return "Up \(series.wins)–\(series.losses) · \(games)" }
-            if series.losses > series.wins { return "Down \(series.wins)–\(series.losses) · \(games)" }
-            return "Tied \(series.wins)–\(series.losses) · \(games)"
+            if series.userFacingElimination { return "WIN OR GO HOME" }
+            if let game = todayGame, game.verdict == .pending {
+                return "GAME \(game.gameNumber) TONIGHT"
+            }
+            return "SERIES IN PROGRESS"
         }
     }
 }

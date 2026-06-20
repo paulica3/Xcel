@@ -5,11 +5,13 @@ import Foundation
 final class Series {
     var id: UUID
     var weekStart: Date
+    var createdAt: Date
     @Relationship(deleteRule: .cascade, inverse: \Game.series) var games: [Game]
 
     init(weekStart: Date) {
         self.id = UUID()
         self.weekStart = weekStart
+        self.createdAt = Date()
         self.games = []
     }
 
@@ -21,6 +23,24 @@ final class Series {
         if wins >= 4 { return .won }
         if losses >= 4 { return .lost }
         return .inProgress
+    }
+
+    // User must win or the series is over (down 1-3, 0-3, etc).
+    var userFacingElimination: Bool { losses == 3 && wins < 4 }
+
+    // Won the series after trailing by 2+ games at some point — the marquee arc.
+    var wasComeback: Bool {
+        guard seriesResult == .won else { return false }
+        var w = 0, l = 0, trailedBy2 = false
+        for game in games.sorted(by: { $0.gameNumber < $1.gameNumber }) {
+            switch game.verdict {
+            case .win: w += 1
+            case .loss: l += 1
+            case .pending: break
+            }
+            if l - w >= 2 { trailedBy2 = true }
+        }
+        return trailedBy2
     }
 
     static func mondayOf(_ date: Date) -> Date {
@@ -35,31 +55,55 @@ enum SeriesResult: String, Codable {
     case won, lost, inProgress
 }
 
+// One task the user committed to in the morning, reviewed at night.
+struct ChecklistItem: Codable, Identifiable, Hashable {
+    var id: UUID
+    var title: String
+    var isDone: Bool
+    var note: String   // proof of how it was done, or the reason it wasn't
+
+    init(title: String) {
+        self.id = UUID()
+        self.title = title
+        self.isDone = false
+        self.note = ""
+    }
+}
+
 @Model
 final class Game {
     var id: UUID
     var date: Date
     var gameNumber: Int
-    var morningIntention: String
-    var eveningEntry: String
+    var checklist: [ChecklistItem]
+    var extraNotes: String   // anything done beyond the plan
     var verdict: GameVerdict
     var verdictOneLiner: String
+    var verdictFeedback: String
     var series: Series?
 
     init(date: Date, gameNumber: Int) {
         self.id = UUID()
         self.date = date
         self.gameNumber = gameNumber
-        self.morningIntention = ""
-        self.eveningEntry = ""
+        self.checklist = []
+        self.extraNotes = ""
         self.verdict = .pending
         self.verdictOneLiner = ""
+        self.verdictFeedback = ""
     }
 
     var isToday: Bool { Calendar.current.isDateInToday(date) }
 
-    var isMissed: Bool {
-        verdict == .pending && date < Calendar.current.startOfDay(for: Date())
+    var morningCompleted: Bool { !checklist.isEmpty }
+
+    // Past, unjudged, and the user had a chance to play it (series already existed).
+    func isMissed(seriesCreatedAt: Date) -> Bool {
+        guard verdict == .pending else { return false }
+        let dayStart = Calendar.current.startOfDay(for: date)
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        let createdStart = Calendar.current.startOfDay(for: seriesCreatedAt)
+        return dayStart < todayStart && dayStart >= createdStart
     }
 }
 

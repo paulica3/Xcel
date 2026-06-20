@@ -54,6 +54,7 @@ struct HistoryView: View {
 
 private struct SeriesRowView: View {
     let series: Series
+    @Environment(AppSettings.self) private var settings
 
     var weekLabel: String {
         let f = DateFormatter()
@@ -64,7 +65,7 @@ private struct SeriesRowView: View {
 
     var resultColor: Color {
         switch series.seriesResult {
-        case .won: return .neonGreen
+        case .won: return settings.accent.color
         case .lost: return Color(white: 0.38)
         case .inProgress: return .white
         }
