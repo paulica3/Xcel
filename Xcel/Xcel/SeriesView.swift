@@ -7,6 +7,7 @@ struct SeriesView: View {
 
     @State private var showHistory = false
     @State private var showEntry = false
+    @State private var showResult = false
 
     private var accent: Color { settings.accent.color }
     private var todayGame: Game? { series.games.first { $0.isToday } }
@@ -29,6 +30,13 @@ struct SeriesView: View {
             if let game = todayGame {
                 NavigationStack {
                     EntryView(game: game, onComplete: { showEntry = false })
+                }
+            }
+        }
+        .sheet(isPresented: $showResult) {
+            if let game = todayGame {
+                NavigationStack {
+                    GameResultView(game: game)
                 }
             }
         }
@@ -121,14 +129,15 @@ struct SeriesView: View {
     @ViewBuilder
     private var ctaSection: some View {
         if let game = todayGame {
-            Button { showEntry = true } label: {
+            Button {
+                if game.verdict == .pending { showEntry = true } else { showResult = true }
+            } label: {
                 ctaLabel(for: game)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                     .background(ctaBackground(for: game))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .disabled(game.verdict != .pending)
             .padding(.horizontal, 24)
             .padding(.bottom, 52)
         } else {

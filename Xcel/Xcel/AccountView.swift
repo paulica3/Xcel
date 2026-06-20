@@ -1,8 +1,11 @@
 import SwiftUI
+import PhotosUI
 
 struct AccountView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
+
+    @State private var photoItem: PhotosPickerItem?
 
     private var accent: Color { settings.accent.color }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
@@ -16,6 +19,8 @@ struct AccountView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     header
+
+                    profilePhoto
 
                     section("YOUR NAME") {
                         TextField("Name", text: $settings.userName)
@@ -34,12 +39,35 @@ struct AccountView: View {
                         }
                     }
 
+                    section("REMINDERS") {
+                        VStack(spacing: 0) {
+                            Toggle(isOn: $settings.notificationsEnabled) {
+                                HStack(spacing: 14) {
+                                    Image(systemName: "bell.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(accent)
+                                        .frame(width: 24)
+                                    Text("Daily reminders")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .tint(accent)
+                            .padding(16)
+
+                            if settings.notificationsEnabled {
+                                divider
+                                timeRow("sunrise.fill", "Morning plan", $settings.morningTime)
+                                divider
+                                timeRow("moon.stars.fill", "Evening log", $settings.eveningTime)
+                            }
+                        }
+                        .background(Color(white: 0.07))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
                     section("COMING SOON") {
                         VStack(spacing: 0) {
-                            placeholderRow("bell.fill", "Notifications")
-                            divider
-                            placeholderRow("person.crop.circle", "Profile photo")
-                            divider
                             placeholderRow("crown.fill", "Go Premium")
                         }
                         .background(Color(white: 0.07))
@@ -64,6 +92,46 @@ struct AccountView: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    private var profilePhoto: some View {
+        VStack(spacing: 12) {
+            AvatarView(data: settings.profileImageData, accent: accent, size: 96)
+
+            HStack(spacing: 12) {
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    Text(settings.profileImageData == nil ? "Choose photo" : "Change photo")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(accent)
+                        .clipShape(Capsule())
+                }
+
+                if settings.profileImageData != nil {
+                    Button {
+                        settings.profileImageData = nil
+                        photoItem = nil
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color(white: 0.6))
+                            .padding(10)
+                            .background(Color(white: 0.12))
+                            .clipShape(Circle())
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .onChange(of: photoItem) { _, item in
+            Task {
+                if let data = try? await item?.loadTransferable(type: Data.self) {
+                    settings.profileImageData = data
+                }
+            }
+        }
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -97,6 +165,23 @@ struct AccountView: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    private func timeRow(_ icon: String, _ label: String, _ time: Binding<Date>) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(Color(white: 0.5))
+                .frame(width: 24)
+            Text(label)
+                .font(.system(size: 16))
+                .foregroundStyle(.white)
+            Spacer()
+            DatePicker("", selection: time, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .tint(accent)
+        }
+        .padding(16)
     }
 
     private func placeholderRow(_ icon: String, _ label: String) -> some View {

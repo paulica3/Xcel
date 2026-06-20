@@ -11,40 +11,46 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.arenaBlack.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("CAREER")
-                        .font(.system(size: 22, weight: .black))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(Color(white: 0.45))
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 28)
-                .padding(.bottom, 28)
-
-                if pastSeries.isEmpty {
-                    Spacer()
-                    Text("No past series yet.\nComplete this week first.")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color(white: 0.3))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            ForEach(pastSeries) { series in
-                                SeriesRowView(series: series)
-                            }
+        NavigationStack {
+            ZStack {
+                Color.arenaBlack.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("CAREER")
+                            .font(.system(size: 22, weight: .black))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(Color(white: 0.45))
                         }
-                        .padding(.horizontal, 24)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 28)
+                    .padding(.bottom, 28)
+
+                    if pastSeries.isEmpty {
+                        Spacer()
+                        Text("No past series yet.\nComplete this week first.")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Color(white: 0.3))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 10) {
+                                ForEach(pastSeries) { series in
+                                    NavigationLink {
+                                        SeriesDetailView(series: series)
+                                    } label: {
+                                        SeriesRowView(series: series)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                        }
                     }
                 }
             }

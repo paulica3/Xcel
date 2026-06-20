@@ -83,6 +83,33 @@ private struct GrainyText: View {
     }
 }
 
+// Circular profile avatar — shows the user's photo if set, else a placeholder glyph.
+struct AvatarView: View {
+    let data: Data?
+    let accent: Color
+    var size: CGFloat = 40
+
+    var body: some View {
+        Circle()
+            .fill(Color(white: 0.1))
+            .frame(width: size, height: size)
+            .overlay(Circle().stroke(accent.opacity(0.6), lineWidth: max(1, size * 0.04)))
+            .overlay {
+                if let data, let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: size * 0.42))
+                        .foregroundStyle(Color(white: 0.55))
+                }
+            }
+    }
+}
+
 // A handful of small random-noise frames, generated once, cycled for a static-y shimmer.
 enum NoiseTexture {
     static let frames: [UIImage] = (0..<8).map { _ in make(width: 56, height: 14) }

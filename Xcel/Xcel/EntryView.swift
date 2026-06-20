@@ -74,14 +74,13 @@ struct EntryView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 10) {
-                    ForEach(items) { item in
+                    ForEach($items) { $item in
                         HStack {
                             Image(systemName: "circle")
                                 .foregroundStyle(accent.opacity(0.7))
-                            Text(item.title)
+                            TextField("Task", text: $item.title)
                                 .font(.system(size: 16))
                                 .foregroundStyle(.white)
-                            Spacer()
                             Button {
                                 items.removeAll { $0.id == item.id }
                             } label: {

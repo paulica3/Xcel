@@ -3,6 +3,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(AppSettings.self) private var settings
     @Query(sort: \Series.weekStart, order: .reverse) private var allSeries: [Series]
 
     var currentSeries: Series? {
@@ -17,6 +18,10 @@ struct ContentView: View {
         .onAppear {
             ensureCurrentSeries()
             processMissedGames()
+            settings.setUpNotifications()
+        }
+        .fullScreenCover(isPresented: .constant(!settings.hasOnboarded)) {
+            OnboardingView()
         }
     }
 

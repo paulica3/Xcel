@@ -1,11 +1,13 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     let series: Series?
     @Environment(AppSettings.self) private var settings
+    @Environment(\.openURL) private var openURL
 
     @State private var showAccount = false
-    @State private var showFeedback = false
+    @State private var showInfo = false
     @State private var quote = Quotes.random()
 
     private var accent: Color { settings.accent.color }
@@ -29,11 +31,7 @@ struct HomeView: View {
         .navigationBarHidden(true)
         .onAppear { quote = Quotes.random() }
         .sheet(isPresented: $showAccount) { AccountView() }
-        .alert("Feedback", isPresented: $showFeedback) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Feedback is coming soon. Thanks for wanting to help shape Xcel.")
-        }
+        .sheet(isPresented: $showInfo) { InfoView() }
     }
 
     // MARK: Top — wordmark + account avatar
@@ -41,17 +39,20 @@ struct HomeView: View {
     private var topBar: some View {
         VStack(spacing: 6) {
             HStack {
-                Spacer()
-                Button { showAccount = true } label: {
+                Button { showInfo = true } label: {
                     Circle()
                         .fill(Color(white: 0.1))
                         .frame(width: 40, height: 40)
                         .overlay(Circle().stroke(accent.opacity(0.6), lineWidth: 1.5))
                         .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 17))
+                            Image(systemName: "info")
+                                .font(.system(size: 18, weight: .bold))
                                 .foregroundStyle(Color(white: 0.55))
                         )
+                }
+                Spacer()
+                Button { showAccount = true } label: {
+                    AvatarView(data: settings.profileImageData, accent: accent, size: 40)
                 }
             }
 
@@ -125,7 +126,7 @@ struct HomeView: View {
     // MARK: Bottom — feedback
 
     private var bottomBar: some View {
-        Button { showFeedback = true } label: {
+        Button { openFeedback() } label: {
             HStack(spacing: 6) {
                 Image(systemName: "paperplane")
                 Text("Send feedback")
@@ -134,6 +135,22 @@ struct HomeView: View {
             .foregroundStyle(Color(white: 0.4))
         }
         .padding(.bottom, 32)
+    }
+
+    private func openFeedback() {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        let body = "\n\n\n— — —\nXcel \(version) (\(build))\niOS \(UIDevice.current.systemVersion) · \(UIDevice.current.model)"
+
+        var comps = URLComponents()
+        comps.scheme = "mailto"
+        comps.path = "xtinctai@outlook.com"
+        comps.queryItems = [
+            URLQueryItem(name: "subject", value: "Xcel Feedback"),
+            URLQueryItem(name: "body", value: body),
+        ]
+        if let url = comps.url { openURL(url) }
     }
 
     private func statusHeadline(_ series: Series) -> String {
