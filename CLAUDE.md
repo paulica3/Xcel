@@ -23,12 +23,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Branch Strategy
 
+**Current phase — build-everything-first (testing deployment).** We are NOT splitting free vs premium yet. The goal is one complete, polished testing build that contains *all* the features — free, premium-candidate, everything — so we can put it in front of testers and feel out what actually lands. Tier decisions come *after* the test build, based on what testers value.
+
 | Branch | Purpose |
 |---|---|
-| `main` | Free tier only — daily entry, AI W/L verdict, series scoreline, basic history. Must be clean and shippable. |
-| `premium` | Paid features layered on top: box score breakdown, voice-to-text, commentator personalities, season stats, career page, weekly recap, social league, cosmetics/IAP. |
+| `main` | The testing deployment. Build all features here — daily entry, AI verdict, scoreline, history, season stats/insights, notifications, etc. Keep it clean and shippable to TestFlight, but it is NOT limited to the free tier. |
+| `premium` | Reserved for later. Once we know which features deserve to be paid, the monetization split happens here. Not in active use during the build-everything phase. |
 
-**Critical constraint:** The `main` branch architecture must support premium features being added later without refactoring core logic. Clean separation of concerns from day one — no tightly coupled free/premium paths.
+**How we decide tiers (later):** ship the full testing build → gather tester feedback on which features they'd pay for / which are "wow" moments → only then carve the paywalled set into `premium` and trim `main` to the free tier.
+
+**Critical constraint (still holds):** Keep clean separation of concerns so the eventual free/premium carve-up is a configuration/packaging change, not a refactor. No feature should be so tangled into core logic that it can't be gated or moved later. Build premium-candidate features behind clear boundaries (own files/services) even while everything lives on `main`.
 
 ---
 
@@ -52,34 +56,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Home is a landing page**, not the game. Users do NOT jump straight into the series. Home → "Enter the arena" → `SeriesView` (scoreboard).
 - `Theme.swift` — `AppSettings` (`@Observable`, injected via `.environment`, persisted to UserDefaults) holds the user's accent color + name. `AccentTheme` enum = 8 neon colors (green, orange, blue, pink, purple, cyan, red, gold). All views read `settings.accent.color`; never hardcode the accent.
 - `BrandingViews.swift` — `WavingTitle` (accent sweeps across the wordmark) and `XtinctBadge` ("POWERED BY XTINCT AI" with subtle chaotic jitter). **XTINCT AI is the company building the app** — keep the attribution.
-- Account + name + color picker live in `AccountView` (functional); notifications/photo/premium are placeholder rows.
+- `AccountView` is functional: name, accent color picker, profile photo, adjustable reminder times, and a **Season insights** entry point (`InsightsView`). "Go Premium" remains a placeholder row.
 
 ---
 
 ## Feature Tiers
 
-### Free (on `main`)
-- Daily text journal entry
-- AI Win/Loss verdict with a short one-liner
-- Weekly series scoreline
-- Basic series history
+These are **tier *candidates*, not a committed split.** During the build-everything-first phase, all of these are built on `main` for the testing deployment. The free/premium/league grouping below is our current *hypothesis* for how it might monetize — revisit it after tester feedback, not before.
 
-### Premium (on `premium`)
+### Core loop (almost certainly free)
+- ✅ Daily checklist journal entry (morning plan + evening proof)
+- ✅ AI Win/Loss verdict with a one-liner + coach's notes
+- ✅ Weekly series scoreline + basic series history
+- ✅ Two-touch ritual + daily notifications, noon edit lock
+
+### Premium candidates (built on `main` now, may become paid later)
+- ✅ Season stats on Home (all-time record, streak, best comeback)
+- ✅ Season insights / monthly "vs Life" verdict + AI pattern analysis (`InsightsService`/`InsightsView`)
+- ✅ Animated verdict reveals + series clinch celebrations
 - Box Score Breakdown — day scored across Effort, Discipline, Mood, Productivity
 - Voice-to-text entry (Speech → AI)
 - AI Commentator Personalities: Hype-man, Brutal Analyst, Calm Vet Coach
-- Season stats & Career page (all-time record, streaks, best comeback)
 - End-of-week AI recap (optionally read aloud in broadcast style)
 - **Intention checklist + photo proof** (planned): AI turns the morning intention into a checklist; user checks off items and attaches a Photos-library image. App reads the photo's EXIF date to confirm it's same-day, and uses on-device Vision/AI to check the image matches the intention. Needs PhotoKit + Vision + EXIF — substantial; design as its own phase.
 
-### League (add-on or higher tier)
+### League candidates
 - Conferences with friends
 - Shared leaderboard / rivalry tracking
 
-### Cosmetics (one-time IAP, available to all tiers)
+### Cosmetics (one-time IAP)
 - Jersey-style UI themes
 - Court/arena backgrounds
 - Alternate broadcast skins (ESPN vs TNT vs NBA TV aesthetic)
+
+> ✅ = already built and in the testing deployment. Unchecked = not built yet.
 
 ---
 
