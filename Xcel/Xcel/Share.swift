@@ -72,7 +72,7 @@ enum Sharer {
         return renderer.uiImage
     }
 
-    // The system share sheet — covers WhatsApp, Telegram, Messages, Instagram
+    // The system share sheet - covers WhatsApp, Telegram, Messages, Instagram
     // feed/direct, Save Image, and anything else with a share extension.
     @MainActor static func presentShareSheet(image: UIImage) {
         guard let root = keyRootController() else { return }

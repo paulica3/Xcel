@@ -96,8 +96,8 @@ enum RecapService {
         let instructions = """
         You are a sports broadcaster delivering the post-series wrap-up of someone's week.
         Each week is a best-of-seven playoff series; each day is a game they won or lost based on
-        whether they followed through on their plan. Capture the arc of the week — momentum swings,
-        the turning point, how it ended — in a punchy, energetic broadcast voice. Motivating and real,
+        whether they followed through on their plan. Capture the arc of the week - momentum swings,
+        the turning point, how it ended - in a punchy, energetic broadcast voice. Motivating and real,
         never generic. Reference actual days and what happened.
 
         Respond ONLY with valid JSON, nothing else:
@@ -106,7 +106,7 @@ enum RecapService {
 
         var prompt = "Final series result: \(series.wins)–\(series.losses)"
         switch series.seriesResult {
-        case .won: prompt += series.wasComeback ? " (WON — comeback from 2+ down).\n" : " (series WON).\n"
+        case .won: prompt += series.wasComeback ? " (WON - comeback from 2+ down).\n" : " (series WON).\n"
         case .lost: prompt += " (series LOST).\n"
         case .inProgress: prompt += " (week ended, unfinished).\n"
         }
@@ -115,8 +115,8 @@ enum RecapService {
         for g in games {
             let mark = g.verdict == .win ? "W" : "L"
             let done = g.checklist.filter { $0.isDone }.count
-            prompt += "Game \(g.gameNumber) (\(df.string(from: g.date))) [\(mark)] — \(done)/\(g.checklist.count) tasks done"
-            if !g.verdictOneLiner.isEmpty { prompt += " — \"\(g.verdictOneLiner)\"" }
+            prompt += "Game \(g.gameNumber) (\(df.string(from: g.date))) [\(mark)] - \(done)/\(g.checklist.count) tasks done"
+            if !g.verdictOneLiner.isEmpty { prompt += " - \"\(g.verdictOneLiner)\"" }
             prompt += "\n"
         }
 
@@ -139,11 +139,11 @@ enum RecapService {
         let headline: String
         switch series.seriesResult {
         case .won:
-            headline = series.wasComeback ? "Comeback for the ages — \(w)–\(l)." : "Series in the bag — \(w)–\(l)."
+            headline = series.wasComeback ? "Comeback for the ages - \(w)–\(l)." : "Series in the bag - \(w)–\(l)."
         case .lost:
             headline = "They took the series \(w)–\(l). Next week's a new one."
         case .inProgress:
-            headline = "Week's a wrap — \(w)–\(l)."
+            headline = "Week's a wrap - \(w)–\(l)."
         }
 
         // Find the longest win streak and any turning point.
@@ -154,11 +154,11 @@ enum RecapService {
 
         var body = "You went \(w)–\(l) across \(games.count) games. "
         if series.wasComeback {
-            body += "Down and nearly out, you reeled off the wins when it mattered and stole the series — the kind of week you remember. "
+            body += "Down and nearly out, you reeled off the wins when it mattered and stole the series - the kind of week you remember. "
         } else if series.seriesResult == .won {
             body += "You controlled it and closed it out. "
         } else if series.seriesResult == .lost {
-            body += "It got away this week, but the tape shows where it slipped — fixable. "
+            body += "It got away this week, but the tape shows where it slipped - fixable. "
         }
         if bestRun >= 2 { body += "Your best stretch was \(bestRun) straight wins. " }
         body += series.seriesResult == .won ? "Run it back." : "Reset and come out swinging Monday."

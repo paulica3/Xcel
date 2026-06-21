@@ -50,7 +50,7 @@ struct SubmitView: View {
         .navigationBarHidden(true)
     }
 
-    // MARK: Ready — confirm the day
+    // MARK: Ready - confirm the day
 
     private var readyView: some View {
         VStack(spacing: 0) {
@@ -123,7 +123,7 @@ struct SubmitView: View {
         }
     }
 
-    // MARK: Verdict — W/L + coach's notes
+    // MARK: Verdict - W/L + coach's notes
 
     private func verdictView(_ r: JudgeResult) -> some View {
         VStack(spacing: 0) {
@@ -199,7 +199,7 @@ struct SubmitView: View {
         )
     }
 
-    // MARK: After the reveal animation — show verdict, then any celebration
+    // MARK: After the reveal animation - show verdict, then any celebration
 
     private func revealFinished() {
         withAnimation(.spring(duration: 0.45)) { phase = .verdict }
@@ -211,7 +211,7 @@ struct SubmitView: View {
                 FX.comeback()
                 if series.wasComeback {
                     celebrationTitle = "COMEBACK"
-                    celebrationSubtitle = "Down and out — and you took the series anyway."
+                    celebrationSubtitle = "Down and out - and you took the series anyway."
                 } else {
                     celebrationTitle = "SERIES WON"
                     celebrationSubtitle = "You took the series \(series.wins)–\(series.losses)."
@@ -236,7 +236,8 @@ struct SubmitView: View {
                     extraNotes: game.extraNotes,
                     wins: wins,
                     losses: losses,
-                    gameNumber: game.gameNumber
+                    gameNumber: game.gameNumber,
+                    guide: settings.guide
                 )
                 await MainActor.run {
                     game.verdict = judgeResult.verdict

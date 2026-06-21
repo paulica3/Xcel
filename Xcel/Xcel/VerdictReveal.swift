@@ -1,7 +1,7 @@
 import SwiftUI
 
 // The animated moment between "judge is watching" and the W/L card.
-// A short basketball play resolves into the verdict — a different play each time.
+// A short basketball play resolves into the verdict - a different play each time.
 enum VerdictPlay: CaseIterable {
     // Wins
     case slamDunk, buzzerBeater, fromDowntown

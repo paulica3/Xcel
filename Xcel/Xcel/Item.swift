@@ -7,7 +7,7 @@ final class Series {
     var weekStart: Date
     var createdAt: Date
     // A warm-up is the user's first week when they joined mid-week: full 4 wins
-    // is impossible, so it's reps-only — judged for practice, not counted as a
+    // is impossible, so it's reps-only - judged for practice, not counted as a
     // real series. The first real best-of-7 starts the following Monday.
     var isWarmup: Bool = false
     // End-of-week broadcast recap, generated once when the series finishes.
@@ -39,7 +39,7 @@ final class Series {
     var judgedCount: Int { games.filter { $0.verdict != .pending }.count }
 
     // One Injured Reserve per series: a single loss can be excused so it doesn't
-    // count against the record (real life happens — once a week, no questions).
+    // count against the record (real life happens - once a week, no questions).
     var injuredReserveUsed: Bool { games.contains { $0.excused } }
     var canUseInjuredReserve: Bool {
         !isWarmup && !injuredReserveUsed && games.contains { $0.verdict == .loss && !$0.excused }
@@ -55,7 +55,7 @@ final class Series {
     }
 
     var seriesResult: SeriesResult {
-        // A warm-up never clinches — it stays "in progress" so it's never
+        // A warm-up never clinches - it stays "in progress" so it's never
         // framed as a won or lost series.
         if isWarmup { return .inProgress }
         if wins >= 4 { return .won }
@@ -66,7 +66,7 @@ final class Series {
     // User must win or the series is over (down 1-3, 0-3, etc). Not in warm-up.
     var userFacingElimination: Bool { !isWarmup && losses == 3 && wins < 4 }
 
-    // Won the series after trailing by 2+ games at some point — the marquee arc.
+    // Won the series after trailing by 2+ games at some point - the marquee arc.
     var wasComeback: Bool {
         guard seriesResult == .won else { return false }
         var w = 0, l = 0, trailedBy2 = false
@@ -99,12 +99,25 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
     var title: String
     var isDone: Bool
     var note: String   // proof of how it was done, or the reason it wasn't
+    // The one task that matters most today - the judge weights it heavier.
+    var isGameBall: Bool
 
     init(title: String) {
         self.id = UUID()
         self.title = title
         self.isDone = false
         self.note = ""
+        self.isGameBall = false
+    }
+
+    // Custom decode so checklists saved before the game-ball flag existed still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.isDone = try c.decode(Bool.self, forKey: .isDone)
+        self.note = try c.decode(String.self, forKey: .note)
+        self.isGameBall = try c.decodeIfPresent(Bool.self, forKey: .isGameBall) ?? false
     }
 }
 
@@ -118,13 +131,13 @@ final class Game {
     var verdict: GameVerdict
     var verdictOneLiner: String
     var verdictFeedback: String
-    // Box score — the day rated 0-10 across four dimensions (premium breakdown).
+    // Box score - the day rated 0-10 across four dimensions (premium breakdown).
     // 0 across the board means "not scored".
     var scoreEffort: Int = 0
     var scoreDiscipline: Int = 0
     var scoreMood: Int = 0
     var scoreProductivity: Int = 0
-    // Placed on Injured Reserve — the loss is excused and doesn't count.
+    // Placed on Injured Reserve - the loss is excused and doesn't count.
     var excused: Bool = false
     var series: Series?
 
@@ -148,7 +161,7 @@ final class Game {
     var morningCompleted: Bool { !checklist.isEmpty }
 
     // The game plan can only be edited until noon on the game's day. After that
-    // it's locked in — you can still log results at night, but no more changes.
+    // it's locked in - you can still log results at night, but no more changes.
     var editsLocked: Bool {
         let cal = Calendar.current
         guard let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) else { return true }
@@ -169,6 +182,61 @@ enum GameVerdict: String, Codable {
     case pending, win, loss
 }
 
+// Average box score across a set of games - the season-long "stat line".
+// Each component is a 0-10 mean carried as a float (shown to one decimal).
+struct BoxScoreAverages {
+    var effort: Double
+    var discipline: Double
+    var mood: Double
+    var productivity: Double
+    var count: Int            // how many games actually carried a box score
+
+    var hasData: Bool { count > 0 }
+    var overall: Double {
+        count == 0 ? 0 : (effort + discipline + mood + productivity) / 4
+    }
+
+    static let empty = BoxScoreAverages(effort: 0, discipline: 0, mood: 0, productivity: 0, count: 0)
+
+    static func compute(from games: [Game]) -> BoxScoreAverages {
+        let scored = games.filter { $0.hasBoxScore }
+        guard !scored.isEmpty else { return .empty }
+        let n = Double(scored.count)
+        return BoxScoreAverages(
+            effort: Double(scored.reduce(0) { $0 + $1.scoreEffort }) / n,
+            discipline: Double(scored.reduce(0) { $0 + $1.scoreDiscipline }) / n,
+            mood: Double(scored.reduce(0) { $0 + $1.scoreMood }) / n,
+            productivity: Double(scored.reduce(0) { $0 + $1.scoreProductivity }) / n,
+            count: scored.count
+        )
+    }
+}
+
+// Per-dimension box-score history (oldest → newest) for sparklines.
+struct BoxScoreTrend {
+    var effort: [Double]
+    var discipline: [Double]
+    var mood: [Double]
+    var productivity: [Double]
+
+    var hasData: Bool { effort.count >= 2 }
+    static let empty = BoxScoreTrend(effort: [], discipline: [], mood: [], productivity: [])
+
+    var series: [(String, [Double])] {
+        [("EFFORT", effort), ("DISCIPLINE", discipline), ("MOOD", mood), ("PRODUCTIVITY", productivity)]
+    }
+
+    static func compute(from games: [Game], limit: Int = 10) -> BoxScoreTrend {
+        let scored = games.filter { $0.hasBoxScore }.sorted { $0.date < $1.date }.suffix(limit)
+        return BoxScoreTrend(
+            effort: scored.map { Double($0.scoreEffort) },
+            discipline: scored.map { Double($0.scoreDiscipline) },
+            mood: scored.map { Double($0.scoreMood) },
+            productivity: scored.map { Double($0.scoreProductivity) }
+        )
+    }
+}
+
 // All-time identity shown on the Home page: record, current win streak, and
 // the biggest series comeback ever pulled off.
 struct CareerStats {
@@ -183,7 +251,7 @@ struct CareerStats {
         var wins = 0, losses = 0
         var judged: [Game] = []
 
-        // Warm-up weeks are practice — they don't count toward the career record.
+        // Warm-up weeks are practice - they don't count toward the career record.
         // Excused (Injured Reserve) days don't count either.
         for series in allSeries where !series.isWarmup {
             for game in series.games where !game.excused {

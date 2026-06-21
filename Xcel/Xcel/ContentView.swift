@@ -30,7 +30,7 @@ struct ContentView: View {
         guard currentSeries == nil else { return }
         let monday = Series.mondayOf(Date())
 
-        // The user's first-ever week is a warm-up if they joined after Monday —
+        // The user's first-ever week is a warm-up if they joined after Monday -
         // they can't play the full series, so it's reps until the next Monday.
         let isFirstEver = allSeries.isEmpty
         let joinedMidWeek = !Calendar.current.isDate(Date(), inSameDayAs: monday)

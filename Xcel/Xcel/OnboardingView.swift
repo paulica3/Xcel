@@ -22,11 +22,11 @@ struct OnboardingView: View {
         Slide(icon: "gavel.fill",
               kicker: "THE JUDGE",
               title: "Every night, you get a verdict",
-              body: "Set a game plan in the morning. Log how it went at night with real proof. The Judge calls it — a W or an L. Tough but fair."),
+              body: "Set a game plan in the morning. Log how it went at night with real proof. The Judge calls it - a W or an L. Tough but fair."),
         Slide(icon: "flame.fill",
               kicker: "THE STAKES",
               title: "A loss isn't the end",
-              body: "Down 1-3? Storm back and steal it 4-3 — the best feeling in the game. Miss a day and it's an automatic L. Show up.")
+              body: "Down 1-3? Storm back and steal it 4-3 - the best feeling in the game. Miss a day and it's an automatic L. Show up.")
     ]
 
     var body: some View {

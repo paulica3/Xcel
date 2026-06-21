@@ -24,14 +24,35 @@ struct MonthlyInsights {
     var suggestions: [String]
     var struggles: [TaskStruggle]   // recurring tasks you keep dropping
     var bright: [TaskStruggle]      // recurring tasks you reliably nail
+    var boxAverages: BoxScoreAverages   // season-long box-score stat line
+    var boxTrend: BoxScoreTrend         // per-dimension sparkline history
+    var comparison: SeasonComparison?   // this window vs the previous one
     var hasEnoughData: Bool
 
     static let empty = MonthlyInsights(
         periodLabel: "Last 30 days", gamesPlayed: 0, wins: 0, losses: 0,
         wonAgainstLife: false, headline: "", summary: "",
         successPatterns: [], blockers: [], suggestions: [],
-        struggles: [], bright: [], hasEnoughData: false
+        struggles: [], bright: [], boxAverages: .empty, boxTrend: .empty,
+        comparison: nil, hasEnoughData: false
     )
+}
+
+// This 30-day window measured against the previous one - your "vs last month".
+struct SeasonComparison {
+    var prevWins: Int
+    var prevLosses: Int
+    var prevBox: Double          // previous window's avg overall box score
+    var currentWinRate: Double
+    var currentBox: Double
+
+    var prevWinRate: Double {
+        let total = prevWins + prevLosses
+        return total == 0 ? 0 : Double(prevWins) / Double(total)
+    }
+    var winRateDelta: Double { currentWinRate - prevWinRate }   // +/- fraction
+    var boxDelta: Double { currentBox - prevBox }
+    var hasPrev: Bool { prevWins + prevLosses > 0 }
 }
 
 enum InsightsService {
@@ -42,7 +63,7 @@ enum InsightsService {
         let cal = Calendar.current
         let cutoff = cal.date(byAdding: .day, value: -windowDays, to: Date()) ?? .distantPast
 
-        // Judged games in the window (warm-ups still count as lived days here —
+        // Judged games in the window (warm-ups still count as lived days here -
         // they're real effort, just not a real series).
         let games = allSeries
             .flatMap { $0.games }
@@ -51,6 +72,15 @@ enum InsightsService {
 
         let wins = games.filter { $0.verdict == .win }.count
         let losses = games.filter { $0.verdict == .loss }.count
+
+        // Previous 30-day window, for the month-over-month comparison.
+        let prevCutoff = cal.date(byAdding: .day, value: -windowDays * 2, to: Date()) ?? .distantPast
+        let prevGames = allSeries
+            .flatMap { $0.games }
+            .filter { $0.verdict != .pending && $0.date >= prevCutoff && $0.date < cutoff }
+        let prevWins = prevGames.filter { $0.verdict == .win }.count
+        let prevLosses = prevGames.filter { $0.verdict == .loss }.count
+        let prevBox = BoxScoreAverages.compute(from: prevGames).overall
 
         let (struggles, bright) = taskBreakdown(games)
 
@@ -61,6 +91,16 @@ enum InsightsService {
         insights.losses = losses
         insights.struggles = struggles
         insights.bright = bright
+        let boxAverages = BoxScoreAverages.compute(from: games)
+        insights.boxAverages = boxAverages
+        insights.boxTrend = BoxScoreTrend.compute(from: games)
+        let winRate = games.isEmpty ? 0 : Double(wins) / Double(games.count)
+        if prevWins + prevLosses > 0 {
+            insights.comparison = SeasonComparison(
+                prevWins: prevWins, prevLosses: prevLosses, prevBox: prevBox,
+                currentWinRate: winRate, currentBox: boxAverages.overall
+            )
+        }
         insights.hasEnoughData = games.count >= minGames
 
         guard insights.hasEnoughData else { return insights }
@@ -137,7 +177,7 @@ enum InsightsService {
         let instructions = """
         You are a performance analyst reviewing someone's last month of daily self-discipline "games".
         Each day they set a plan of tasks, then logged what they did or didn't do, and got a Win or Loss.
-        Your job: find the REAL patterns — what drives their wins, and what keeps tripping them up — and
+        Your job: find the REAL patterns - what drives their wins, and what keeps tripping them up - and
         deliver a straight, motivating monthly verdict on whether they won against life this month.
 
         Rules:
@@ -164,7 +204,7 @@ enum InsightsService {
             let doneCount = game.checklist.filter { $0.isDone }.count
             prompt += "\(df.string(from: game.date)) [\(mark)] \(doneCount)/\(game.checklist.count) done"
             let missed = game.checklist.filter { !$0.isDone }.map { $0.title }
-            if !missed.isEmpty { prompt += " — missed: \(missed.joined(separator: ", "))" }
+            if !missed.isEmpty { prompt += " - missed: \(missed.joined(separator: ", "))" }
             prompt += "\n"
         }
 
@@ -201,25 +241,25 @@ enum InsightsService {
 
         let pct = Int((winRate * 100).rounded())
         insights.headline = insights.wonAgainstLife
-            ? "You won the month — \(insights.wins)–\(insights.losses)."
-            : "Life took this month — \(insights.wins)–\(insights.losses). Not the next one."
+            ? "You won the month - \(insights.wins)–\(insights.losses)."
+            : "Life took this month - \(insights.wins)–\(insights.losses). Not the next one."
         insights.summary = "You played \(insights.gamesPlayed) games and won \(pct)% of them. "
             + (insights.wonAgainstLife
-               ? "More wins than losses — the habit is taking hold."
+               ? "More wins than losses - the habit is taking hold."
                : "The losses outweighed the wins. The plan is there; the follow-through is the gap.")
 
         insights.successPatterns = insights.bright.map {
-            "You almost never skip “\($0.title)” (\($0.done)/\($0.total)) — that's an anchor habit."
+            "You almost never skip “\($0.title)” (\($0.done)/\($0.total)) - that's an anchor habit."
         }
         if insights.successPatterns.isEmpty && insights.wins > 0 {
-            insights.successPatterns = ["Your wins line up with days you finished most of your plan — completion is your edge."]
+            insights.successPatterns = ["Your wins line up with days you finished most of your plan - completion is your edge."]
         }
 
         insights.blockers = insights.struggles.prefix(3).map {
-            "“\($0.title)” keeps slipping — only \($0.done) of \($0.total) days done."
+            "“\($0.title)” keeps slipping - only \($0.done) of \($0.total) days done."
         }
         if insights.blockers.isEmpty {
-            insights.blockers = ["No single task is dragging you down — the misses are scattered, which usually means inconsistent days, not one bad habit."]
+            insights.blockers = ["No single task is dragging you down - the misses are scattered, which usually means inconsistent days, not one bad habit."]
         }
 
         insights.suggestions = insights.struggles.prefix(2).map {
@@ -227,6 +267,6 @@ enum InsightsService {
         }
         insights.suggestions.append(insights.wonAgainstLife
             ? "Raise the bar next month: add one harder task you'd be proud to win."
-            : "Aim for one clean, fully-completed day to start — momentum beats intensity.")
+            : "Aim for one clean, fully-completed day to start - momentum beats intensity.")
     }
 }

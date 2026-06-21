@@ -49,11 +49,11 @@ enum NotificationManager {
 
         addRepeating(id: Id.morning, hour: morning.hour, minute: morning.minute,
                      title: "Set your game plan",
-                     body: "Game day. Lock in your plan before tip-off — it locks at noon.")
+                     body: "Game day. Lock in your plan before tip-off - it locks at noon.")
 
         addRepeating(id: Id.lockWarning, hour: lockWarnHour, minute: lockWarnMinute,
                      title: "Last call to edit",
-                     body: "Your game plan locks at 12:00. Make your changes now — no edits after noon.")
+                     body: "Your game plan locks at 12:00. Make your changes now - no edits after noon.")
 
         addRepeating(id: Id.evening, hour: evening.hour, minute: evening.minute,
                      title: "How'd it go?",
@@ -129,7 +129,7 @@ enum NotificationManager {
         if losses > wins {
             push = "You're down. Today you need to really push."
         } else if wins > losses {
-            push = "You're ahead — don't let up. Close it out."
+            push = "You're ahead - don't let up. Close it out."
         } else {
             push = "It's tied. This one swings the series."
         }

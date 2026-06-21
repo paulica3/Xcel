@@ -14,7 +14,7 @@ struct InfoView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
 
-                    Text("Every week is a best-of-seven playoff series. Every day is a game. It's you vs. you — and the Judge is keeping score.")
+                    Text("Every week is a best-of-seven playoff series. Every day is a game. It's you vs. you - and the Judge is keeping score.")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(Color(white: 0.6))
 
@@ -22,21 +22,25 @@ struct InfoView: View {
                         rule("basketball.fill", "The series",
                              "Seven games, Monday through Sunday. A fresh series starts every week.")
                         rule("calendar", "Each game",
-                             "Morning: set your game plan (at least 3 tasks). Night: log how it went with proof. The Judge calls it — W or L.")
+                             "Morning: set your game plan (at least 3 tasks). Night: log how it went with proof. The Judge calls it a W or L.")
+                        rule("basketball.fill", "The game ball",
+                             "Tap the ○ next to your most important task to make it the game ball. The Judge leans hardest on it. Nail it and a close day tips your way.")
                         rule("trophy.fill", "Winning the series",
                              "First to 4 wins takes it. Clinch the series and you've moved on.")
                         rule("flame.fill", "Comebacks",
-                             "Down 1-3? Not dead. Win out and steal it 4-3 — the sweetest comeback in the game.")
+                             "Down 1-3? Not dead. Win out and steal it 4-3 - the sweetest comeback in the game.")
                         rule("exclamationmark.triangle.fill", "Elimination",
                              "Three losses and your back's against the wall. Win or go home.")
                         rule("house.fill", "Home court advantage",
                              "When you're down 2+, the Judge eases up to keep you in the fight.")
                         rule("clock.badge.xmark", "Miss a game?",
                              "Skip a day and it's an automatic L. No-shows don't get a pass.")
-                        rule("gavel.fill", "The Judge",
-                             "Tough but fair. Rewards honesty and real effort — sees right through vague proof and excuses.")
+                        rule("building.columns.fill", "The Judge",
+                             "Tough but fair. Rewards honesty and real effort - sees right through vague proof and excuses.")
+                        rule("person.wave.2.fill", "Your guide",
+                             "Pick your guide's voice in your profile. It changes how the Judge talks to you, never how strictly you're scored.")
                         rule("figure.run", "Warm-up week",
-                             "Join mid-week and your first few days are a warm-up — get your reps in. Your first real series tips off the next Monday.")
+                             "Join mid-week and your first few days are a warm-up - get your reps in. Your first real series tips off the next Monday.")
                     }
 
                     XtinctBadge(accent: accent)

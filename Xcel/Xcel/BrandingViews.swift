@@ -34,7 +34,7 @@ struct WavingTitle: View {
 }
 
 // "POWERED BY" stays perfectly still; only "XTINCT AI" dissolves into grainy,
-// pixelated static and resolves — a brief rise-and-fall, low intensity.
+// pixelated static and resolves - a brief rise-and-fall, low intensity.
 struct XtinctBadge: View {
     let accent: Color
 
@@ -83,7 +83,7 @@ private struct GrainyText: View {
     }
 }
 
-// Circular profile avatar — shows the user's photo if set, else a placeholder glyph.
+// Circular profile avatar - shows the user's photo if set, else a placeholder glyph.
 struct AvatarView: View {
     let data: Data?
     let accent: Color

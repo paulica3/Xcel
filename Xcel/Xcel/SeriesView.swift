@@ -14,7 +14,7 @@ struct SeriesView: View {
 
     var body: some View {
         ZStack {
-            Color.arenaBlack.ignoresSafeArea()
+            CourtBackground()
 
             VStack(spacing: 0) {
                 header
@@ -143,7 +143,7 @@ struct SeriesView: View {
         }
     }
 
-    // MARK: This week's game log — past days you've logged, tap to review.
+    // MARK: This week's game log - past days you've logged, tap to review.
 
     private var loggedGames: [Game] {
         series.games
@@ -242,20 +242,20 @@ struct SeriesView: View {
     private func ctaLabel(for game: Game) -> some View {
         switch game.verdict {
         case .pending:
-            Text(game.morningCompleted ? "Log Game \(game.gameNumber)" : "Set the plan — Game \(game.gameNumber)")
+            Text(game.morningCompleted ? "Log Game \(game.gameNumber)" : "Set the plan - Game \(game.gameNumber)")
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(.black)
         case .win:
             HStack(spacing: 6) {
                 Image(systemName: "checkmark")
-                Text("Game \(game.gameNumber) — W")
+                Text("Game \(game.gameNumber) - W")
             }
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(accent)
         case .loss:
             HStack(spacing: 6) {
                 Image(systemName: "xmark")
-                Text("Game \(game.gameNumber) — L")
+                Text("Game \(game.gameNumber) - L")
             }
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(Color(white: 0.45))
@@ -270,7 +270,7 @@ struct SeriesView: View {
         let remaining = series.gamesRemaining
         let games = remaining == 1 ? "1 game left" : "\(remaining) games left"
         if series.isWarmup {
-            return "Reps only — your real series starts Monday. \(games)."
+            return "Reps only - your real series starts Monday. \(games)."
         }
         switch series.seriesResult {
         case .won: return "Series W · \(series.wins)–\(series.losses)"

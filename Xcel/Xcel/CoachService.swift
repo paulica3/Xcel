@@ -34,9 +34,9 @@ enum CoachService {
         You are a no-nonsense coach reviewing someone's task list for today before it locks in.
         Find the VAGUE or unmeasurable tasks (e.g. "be productive", "work out", "study") and rewrite
         each into a concrete, specific, provable version with a number, a duration, or a clear finish line.
-        Only return tasks that genuinely need tightening — leave already-specific ones out.
+        Only return tasks that genuinely need tightening - leave already-specific ones out.
 
-        Respond ONLY with valid JSON, nothing else — an array:
+        Respond ONLY with valid JSON, nothing else - an array:
         [{"index":0,"improved":"sharper version","reason":"one short why"}]
         """
 
@@ -77,7 +77,7 @@ enum CoachService {
             return TaskCoaching(
                 index: idx,
                 original: t,
-                improved: "\(t) — add a number, a time, or a finish line",
+                improved: "\(t) - add a number, a time, or a finish line",
                 reason: "Too open-ended to prove tonight. Make it measurable."
             )
         }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Full-screen payoff for taking a series — trophy, confetti, the works.
+// Full-screen payoff for taking a series - trophy, confetti, the works.
 // Reused for the comeback variant with different copy.
 struct CelebrationOverlay: View {
     let title: String

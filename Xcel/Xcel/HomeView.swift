@@ -22,7 +22,7 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            Color.arenaBlack.ignoresSafeArea()
+            CourtBackground()
 
             VStack(spacing: 0) {
                 topBar
@@ -45,7 +45,7 @@ struct HomeView: View {
         .sheet(isPresented: $showInfo) { InfoView() }
     }
 
-    // MARK: Top — wordmark + account avatar
+    // MARK: Top - wordmark + account avatar
 
     private var topBar: some View {
         VStack(spacing: 6) {
@@ -73,7 +73,7 @@ struct HomeView: View {
         .padding(.top, 16)
     }
 
-    // MARK: Center — greeting + quote
+    // MARK: Center - greeting + quote
 
     private var welcome: some View {
         VStack(spacing: 18) {
@@ -135,7 +135,7 @@ struct HomeView: View {
     @ViewBuilder
     private var seriesBorder: some View {
         if eliminationActive {
-            // Pulsing red ring — the stakes follow you to the landing page.
+            // Pulsing red ring - the stakes follow you to the landing page.
             TimelineView(.animation) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 let pulse = 0.35 + 0.45 * (0.5 + 0.5 * sin(t * 3.0))
@@ -149,18 +149,18 @@ struct HomeView: View {
         }
     }
 
-    // MARK: Season identity — record, streak, best comeback
+    // MARK: Season identity - record, streak, best comeback
 
     private var statsStrip: some View {
         HStack(spacing: 12) {
             statTile(value: "\(stats.wins)–\(stats.losses)", label: "RECORD", hot: false)
             statTile(
-                value: stats.currentStreak > 0 ? "\(stats.currentStreak)🔥" : "—",
+                value: stats.currentStreak > 0 ? "\(stats.currentStreak)🔥" : "-",
                 label: "STREAK",
                 hot: stats.currentStreak >= 3
             )
             statTile(
-                value: stats.bestComebackDeficit > 0 ? "−\(stats.bestComebackDeficit)" : "—",
+                value: stats.bestComebackDeficit > 0 ? "−\(stats.bestComebackDeficit)" : "-",
                 label: "BEST COMEBACK",
                 hot: false
             )
@@ -186,7 +186,7 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
-    // MARK: Bottom — feedback
+    // MARK: Bottom - feedback
 
     private var bottomBar: some View {
         Button { openFeedback() } label: {
@@ -204,7 +204,7 @@ struct HomeView: View {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
-        let body = "\n\n\n— — —\nXcel \(version) (\(build))\niOS \(UIDevice.current.systemVersion) · \(UIDevice.current.model)"
+        let body = "\n\n\n- - -\nXcel \(version) (\(build))\niOS \(UIDevice.current.systemVersion) · \(UIDevice.current.model)"
 
         var comps = URLComponents()
         comps.scheme = "mailto"

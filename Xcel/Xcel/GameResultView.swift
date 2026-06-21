@@ -105,7 +105,7 @@ struct GameResultView: View {
             HStack(spacing: 10) {
                 Image(systemName: "cross.case.fill")
                     .foregroundStyle(accent)
-                Text("Injured Reserve — this loss doesn't count.")
+                Text("Injured Reserve - this loss doesn't count.")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
@@ -116,7 +116,7 @@ struct GameResultView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         } else if game.verdict == .loss, game.series?.canUseInjuredReserve == true {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Real life got in the way? You've got one Injured Reserve this series — use it to wipe this L from the record.")
+                Text("Real life got in the way? You've got one Injured Reserve this series - use it to wipe this L from the record.")
                     .font(.system(size: 13))
                     .foregroundStyle(Color(white: 0.6))
                 Button {
@@ -277,7 +277,7 @@ struct SeriesDetailView: View {
         switch game.verdict {
         case .win: return "W"
         case .loss: return "L"
-        case .pending: return game.isMissed(seriesCreatedAt: series.createdAt) ? "—" : "·"
+        case .pending: return game.isMissed(seriesCreatedAt: series.createdAt) ? "-" : "·"
         }
     }
 

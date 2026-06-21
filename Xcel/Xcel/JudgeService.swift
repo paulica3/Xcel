@@ -25,9 +25,9 @@ struct BoxScore {
 
 // How hard the judge leans, based on the current series state.
 enum JudgeStance {
-    case homeCourt    // down 2+ — ease up, keep them in the fight
-    case elimination  // 3 losses — win or the series is over
-    case lockedIn     // cruising (3-0) — raise the bar
+    case homeCourt    // down 2+ - ease up, keep them in the fight
+    case elimination  // 3 losses - win or the series is over
+    case lockedIn     // cruising (3-0) - raise the bar
     case standard
 
     static func forSeries(wins: Int, losses: Int) -> JudgeStance {
@@ -42,11 +42,67 @@ enum JudgeStance {
         case .homeCourt:
             return "HOME COURT ADVANTAGE: They're down in the series and need a lifeline. Give honest effort the benefit of the doubt. A genuine attempt earns a W. Only clear non-effort or pure excuse-making earns an L."
         case .elimination:
-            return "ELIMINATION GAME: They're down 1-3 (or worse) — one more L ends the series. Be fair but make the stakes vivid. Reward real fight."
+            return "ELIMINATION GAME: They're down 1-3 (or worse) - one more L ends the series. Be fair but make the stakes vivid. Reward real fight."
         case .lockedIn:
-            return "RAISE THE BAR: They're dominating. Judge strictly — vague wins don't cut it anymore. Demand specificity, real effort, and follow-through."
+            return "RAISE THE BAR: They're dominating. Judge strictly - vague wins don't cut it anymore. Demand specificity, real effort, and follow-through."
         case .standard:
             return "Judge tough-but-fair at the normal bar."
+        }
+    }
+}
+
+// The guide whose voice the judge speaks in. These are original characters whose
+// personalities are INSPIRED BY the nicknames of three all-time greats - no real
+// names, likenesses, or trademarks are used, which keeps it clear of publicity
+// rights. Tone only; the verdict standard never changes with the guide.
+enum Guide: String, CaseIterable, Identifiable {
+    case ant, joker, king
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .ant:   return "The Ant"
+        case .joker: return "The Joker"
+        case .king:  return "The King"
+        }
+    }
+
+    var blurb: String {
+        switch self {
+        case .ant:   return "Confident, hard to please. Pure ATL energy."
+        case .joker: return "Deep, team-first reads. Old-world flavor."
+        case .king:  return "A vet of the game. Wise, a little corny."
+        }
+    }
+
+    // SF Symbol shown until a custom comic portrait asset is added.
+    var icon: String {
+        switch self {
+        case .ant:   return "bolt.fill"
+        case .joker: return "brain.head.profile"
+        case .king:  return "crown.fill"
+        }
+    }
+
+    // Optional comic-portrait asset (drop a matching image into Assets.xcassets).
+    var imageName: String {
+        switch self {
+        case .ant:   return "guide_ant"
+        case .joker: return "guide_joker"
+        case .king:  return "guide_king"
+        }
+    }
+
+    // Injected into the judge's instructions to set delivery only.
+    var directive: String {
+        switch self {
+        case .ant:
+            return "VOICE - THE ANT: Young, supremely confident, hard to impress, pure Atlanta swagger and slang (\"bro\", \"on God\", \"that's crazy\", \"we hooping\", \"too easy\"). Hype the real dogs, but call out anything soft - praise is earned, never cheap. Brash and charismatic, never mean. Tone only; do NOT change how strictly you judge."
+        case .joker:
+            return "VOICE - THE JOKER: A calm, humble, brilliant big man. Give cerebral, team-first reads on what actually moved the day; value the little things and the 'assist' tasks that set up everything else. Dry, deadpan humor with a light old-world (Serbian-English) flavor (\"my friend\"). Understated, never flashy. Tone only; do NOT change how strictly you judge."
+        case .king:
+            return "VOICE - THE KING: A wise veteran and all-time great. Big-picture advice about longevity, consistency, and the long game; measured and motivational, with the occasional corny dad-joke (\"literally\", \"at the end of the day\", \"young king\"). Tone only; do NOT change how strictly you judge."
         }
     }
 }
@@ -62,22 +118,22 @@ struct JudgeService {
         case .available:
             return nil
         case .unavailable(.appleIntelligenceNotEnabled):
-            return "Practice judge — turn on Apple Intelligence in Settings for the real AI."
+            return "Practice judge - turn on Apple Intelligence in Settings for the real AI."
         case .unavailable(.deviceNotEligible):
-            return "Practice judge — this device doesn't support Apple Intelligence."
+            return "Practice judge - this device doesn't support Apple Intelligence."
         case .unavailable(.modelNotReady):
-            return "Practice judge — the AI is still downloading. Try again shortly."
+            return "Practice judge - the AI is still downloading. Try again shortly."
         case .unavailable:
-            return "Practice judge — Apple Intelligence isn't available right now."
+            return "Practice judge - Apple Intelligence isn't available right now."
         }
     }
 
-    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int) async throws -> JudgeResult {
+    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, guide: Guide = .king) async throws -> JudgeResult {
         let stance = JudgeStance.forSeries(wins: wins, losses: losses)
         do {
-            return try await AppleIntelligenceJudge().judge(checklist: checklist, extraNotes: extraNotes, wins: wins, losses: losses, gameNumber: gameNumber, stance: stance)
+            return try await AppleIntelligenceJudge().judge(checklist: checklist, extraNotes: extraNotes, wins: wins, losses: losses, gameNumber: gameNumber, stance: stance, guide: guide)
         } catch {
-            return try await MockJudge().judge(checklist: checklist, extraNotes: extraNotes, wins: wins, losses: losses, gameNumber: gameNumber, stance: stance)
+            return try await MockJudge().judge(checklist: checklist, extraNotes: extraNotes, wins: wins, losses: losses, gameNumber: gameNumber, stance: stance, guide: guide)
         }
     }
 }
@@ -86,24 +142,25 @@ struct JudgeService {
 
 private struct AppleIntelligenceJudge {
     private let basePrompt = """
-    You are the Judge — a tough-but-fair NBA-style commentator reviewing someone's daily game plan.
+    You are the Judge - a tough-but-fair NBA-style commentator reviewing someone's daily game plan.
 
     They set tasks this morning. Tonight they marked each done or not done, with proof (if done) or a reason (if not).
 
     BE CRITICAL AND SKEPTICAL. This is the most important rule:
-    - Proof must be specific and believable. Gibberish, random characters ("asdasd"), single vague words ("done", "yes", "did it"), or proof that doesn't actually describe HOW the task was accomplished is NOT valid — treat that task as effectively NOT done and call it out.
+    - Proof must be specific and believable. Gibberish, random characters ("asdasd"), single vague words ("done", "yes", "did it"), or proof that doesn't actually describe HOW the task was accomplished is NOT valid - treat that task as effectively NOT done and call it out.
     - A checkbox ticked with no real proof earns no credit. Do not reward a checkmark on its own.
     - If most of the proof is empty, vague, or nonsense, the day is a LOSS regardless of how many boxes were checked.
 
     Decide the day: W (win) or L (loss), then write:
     - oneLiner: one punchy broadcast-style sentence delivering the verdict, framed within the series.
-    - feedback: 2-4 sentences of coach's notes. ALWAYS quote or name the actual tasks and proof — never speak in generic terms.
-      • On a WIN: make the praise EARNED and SPECIFIC. Name the exact task(s) they executed and what in their proof sold it. Call out the single strongest moment of the day. Then give one concrete way to push further tomorrow. BANNED — never write empty filler like "you showed up", "good job", "keep it up", "nice work", "stay consistent", "build momentum". If you can't point to something specific they did, it wasn't a win.
+    - feedback: 2-4 sentences of coach's notes. ALWAYS quote or name the actual tasks and proof - never speak in generic terms.
+      • On a WIN: make the praise EARNED and SPECIFIC. Name the exact task(s) they executed and what in their proof sold it. Call out the single strongest moment of the day. Then give one concrete way to push further tomorrow. BANNED - never write empty filler like "you showed up", "good job", "keep it up", "nice work", "stay consistent", "build momentum". If you can't point to something specific they did, it wasn't a win.
       • On a LOSS: name the weak/nonsense/empty proof directly and the one task to protect tomorrow.
 
     Other rules:
+    - GAME BALL: if a task is tagged [GAME BALL], that's the user's declared priority for the day - weight it heavily. Nailing the game ball with real proof can carry a borderline day to a W; whiffing on it (skipped, or fake/empty proof) should drag the day toward an L even if smaller tasks got done. Name the game ball explicitly in your notes.
     - Reward honesty, specificity, and real effort. Penalize vague proof and flimsy excuses.
-    - Judge fairly on reasons for incomplete tasks. GENUINE hardship (illness, hospital, family emergency, injury) is NOT the user's fault — do not be harsh; a day derailed by real hardship can still be a W if they handled it with integrity. Flimsy excuses ("didn't feel like it", "too tired") earn an L.
+    - Judge fairly on reasons for incomplete tasks. GENUINE hardship (illness, hospital, family emergency, injury) is NOT the user's fault - do not be harsh; a day derailed by real hardship can still be a W if they handled it with integrity. Flimsy excuses ("didn't feel like it", "too tired") earn an L.
     - Never frame a loss as a standalone life judgment.
 
     Also rate the day 0-10 on four dimensions (the "box score"):
@@ -111,28 +168,29 @@ private struct AppleIntelligenceJudge {
     - discipline: sticking to the plan and resisting excuses
     - mood: emotional state / attitude as reflected in their entry
     - productivity: how much of real value got done
-    Be honest with these numbers — a Loss should have low scores, a strong Win high ones; nonsense proof scores near 0.
+    Be honest with these numbers - a Loss should have low scores, a strong Win high ones; nonsense proof scores near 0.
 
     Respond ONLY with valid JSON, nothing else:
     {"verdict":"win","oneLiner":"...","feedback":"...","effort":7,"discipline":6,"mood":8,"productivity":7}
     """
 
-    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance) async throws -> JudgeResult {
+    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance, guide: Guide) async throws -> JudgeResult {
         let model = SystemLanguageModel.default
         guard case .available = model.availability else {
             throw JudgeError.modelUnavailable
         }
 
-        let systemPrompt = basePrompt + "\n\n" + stance.directive
+        let systemPrompt = basePrompt + "\n\n" + stance.directive + "\n\n" + guide.directive
 
         var prompt = "Series going into Game \(gameNumber): \(wins)–\(losses)\n\nTasks:\n"
         for item in checklist {
             let mark = item.isDone ? "[DONE]" : "[NOT DONE]"
+            let star = item.isGameBall ? " [GAME BALL]" : ""
             let label = item.isDone ? "proof" : "reason"
-            prompt += "\(mark) \(item.title) — \(label): \(item.note)\n"
+            prompt += "\(mark)\(star) \(item.title) - \(label): \(item.note)\n"
         }
         if !extraNotes.isEmpty {
-            prompt += "\nExtra (beyond the plan — reward genuine initiative): \(extraNotes)\n"
+            prompt += "\nExtra (beyond the plan - reward genuine initiative): \(extraNotes)\n"
         }
 
         let session = LanguageModelSession(instructions: systemPrompt)
@@ -168,7 +226,7 @@ private struct AppleIntelligenceJudge {
 // MARK: - Mock (simulator)
 
 private struct MockJudge {
-    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance) async throws -> JudgeResult {
+    func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance, guide: Guide) async throws -> JudgeResult {
         try await Task.sleep(for: .seconds(1.2))
 
         let total = max(checklist.count, 1)
@@ -177,7 +235,12 @@ private struct MockJudge {
         let credited = checklist.filter { $0.isDone && Credibility.isCredible($0.note) }.count
         let fakeProof = checklist.filter { $0.isDone && !Credibility.isCredible($0.note) }
         let hasExtra = Credibility.isCredible(extraNotes)
-        let ratio = Double(credited) / Double(total) + (hasExtra ? 0.15 : 0)
+        var ratio = Double(credited) / Double(total) + (hasExtra ? 0.15 : 0)
+
+        // Game ball: the declared priority swings the day more than a normal task.
+        let gameBall = checklist.first { $0.isGameBall }
+        let gameBallNailed = gameBall.map { $0.isDone && Credibility.isCredible($0.note) } ?? false
+        if gameBall != nil { ratio += gameBallNailed ? 0.12 : -0.18 }
 
         let hardshipWords = ["hospital", "sick", "ill", "emergency", "injured", "injury", "family", "funeral"]
         let hadHardship = checklist.contains { item in
@@ -185,13 +248,13 @@ private struct MockJudge {
                 && hardshipWords.contains { item.note.lowercased().contains($0) }
         }
 
-        // Nonsense proof is an automatic red flag — the judge is not fooled.
+        // Nonsense proof is an automatic red flag - the judge is not fooled.
         if !fakeProof.isEmpty && credited == 0 {
             let names = fakeProof.prefix(2).map { "“\($0.title)”" }.joined(separator: ", ")
             return JudgeResult(
                 verdict: .loss,
-                oneLiner: "Checked the boxes, but the proof was smoke. The judge isn't buying it — L.",
-                feedback: "The proof on \(names) doesn't describe how you actually did anything. A checkmark with no real receipt counts for nothing. Tomorrow: write one concrete sentence of evidence per task — what you did, when, and how.",
+                oneLiner: "Checked the boxes, but the proof was smoke. The judge isn't buying it - L.",
+                feedback: "The proof on \(names) doesn't describe how you actually did anything. A checkmark with no real receipt counts for nothing. Tomorrow: write one concrete sentence of evidence per task - what you did, when, and how.",
                 effort: 2, discipline: 1, mood: 3, productivity: 1
             )
         }
@@ -204,20 +267,20 @@ private struct MockJudge {
         }
         let verdict: GameVerdict = (ratio >= threshold || hadHardship) ? .win : .loss
 
-        let oneLiner: String
-        let feedback: String
+        var oneLiner: String
+        var feedback: String
         if verdict == .win {
             // Name the standout: the credited task with the most substantial proof.
             let creditedItems = checklist.filter { $0.isDone && Credibility.isCredible($0.note) }
             let standout = creditedItems.max { $0.note.count < $1.note.count }
 
             oneLiner = hadHardship
-                ? "Life threw a curveball and you kept your integrity. The judge respects it — W."
+                ? "Life threw a curveball and you kept your integrity. The judge respects it - W."
                 : "\(credited) of \(total) backed up with real proof. That's a W."
 
             var notes: String
             if let standout {
-                notes = "“\(standout.title)” was the anchor of the day — the receipt on it held up, no hand-waving."
+                notes = "“\(standout.title)” was the anchor of the day - the receipt on it held up, no hand-waving."
             } else {
                 notes = "You handled what life threw at you without dropping your standards."
             }
@@ -226,15 +289,26 @@ private struct MockJudge {
             }
             if !fakeProof.isEmpty {
                 let names = fakeProof.prefix(2).map { "“\($0.title)”" }.joined(separator: ", ")
-                notes += " Where it got shaky: the proof on \(names) was thin — write it like you'd have to defend it."
+                notes += " Where it got shaky: the proof on \(names) was thin - write it like you'd have to defend it."
             } else {
                 notes += " Tomorrow, raise it: add a harder task and prove that one too."
             }
             feedback = notes
         } else {
-            oneLiner = "\(credited) of \(total) held up. Not enough — L."
-            feedback = "The plan was there; the credible follow-through wasn't. Pick the one task that mattered most and protect it tomorrow — win the small battle first, with proof you'd stand behind."
+            oneLiner = "\(credited) of \(total) held up. Not enough - L."
+            feedback = "The plan was there; the credible follow-through wasn't. Pick the one task that mattered most and protect it tomorrow - win the small battle first, with proof you'd stand behind."
         }
+
+        // Call out the game ball directly.
+        if let gb = gameBall {
+            feedback += gameBallNailed
+                ? " Your game ball - “\(gb.title)” - came through. That's the one that anchored it."
+                : " You called “\(gb.title)” your game ball and let it slip. That's the one you can't drop."
+        }
+
+        // Deliver in the chosen guide's voice.
+        oneLiner = Self.styleLine(guide, win: verdict == .win, base: oneLiner)
+        feedback = Self.styleFeedback(guide, win: verdict == .win, base: feedback)
 
         // Heuristic box score derived from completion + integrity of the proof.
         let checkedCount = checklist.filter { $0.isDone }.count
@@ -249,6 +323,27 @@ private struct MockJudge {
             verdict: verdict, oneLiner: oneLiner, feedback: feedback,
             effort: effort, discipline: discipline, mood: mood, productivity: productivity
         )
+    }
+
+    // Persona delivery for the offline judge (the on-device AI handles its own
+    // voice via the prompt). Keeps the analysis, changes only how it lands.
+    private static func styleLine(_ g: Guide, win: Bool, base: String) -> String {
+        switch (g, win) {
+        case (.ant, true):    return base + " That's hooping, bro - on God. 🔥"
+        case (.ant, false):   return base + " Nah, that was soft. Lock in."
+        case (.joker, true):  return base + " Good basketball, my friend - the little things added up."
+        case (.joker, false): return base + " It's okay, my friend. We fix it tomorrow. Simple."
+        case (.king, true):   return base + " That's the standard, young king. Stack it."
+        case (.king, false):  return base + " Tough one - but it's a long season. Run it back."
+        }
+    }
+
+    private static func styleFeedback(_ g: Guide, win: Bool, base: String) -> String {
+        switch g {
+        case .ant:   return base + (win ? " Don't get comfortable, bro." : " I know you got more than that.")
+        case .joker: return base + " Basketball is a team game - take care of the small stuff first."
+        case .king:  return base + " Longevity is the goal. One day at a time."
+        }
     }
 }
 

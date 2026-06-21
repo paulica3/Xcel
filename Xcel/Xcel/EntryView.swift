@@ -73,7 +73,7 @@ struct EntryView: View {
         .padding(.bottom, 20)
     }
 
-    // MARK: Morning — build the checklist
+    // MARK: Morning - build the checklist
 
     private var morningBuilder: some View {
         VStack(spacing: 0) {
@@ -81,8 +81,13 @@ struct EntryView: View {
                 VStack(spacing: 10) {
                     ForEach($items) { $item in
                         HStack {
-                            Image(systemName: "circle")
-                                .foregroundStyle(accent.opacity(0.7))
+                            Button {
+                                toggleGameBall(item.id)
+                            } label: {
+                                Image(systemName: item.isGameBall ? "basketball.fill" : "circle")
+                                    .foregroundStyle(item.isGameBall ? accent : accent.opacity(0.55))
+                            }
+                            .buttonStyle(.plain)
                             TextField("Task", text: $item.title)
                                 .font(.system(size: 16))
                                 .foregroundStyle(.white)
@@ -99,6 +104,17 @@ struct EntryView: View {
                     }
                 }
                 .padding(.horizontal, 24)
+            }
+
+            if !items.isEmpty {
+                Text(items.contains { $0.isGameBall }
+                     ? "Game ball set - the judge leans hardest on it."
+                     : "Tap ○ to call your game ball - the one task that matters most.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(items.contains { $0.isGameBall } ? accent.opacity(0.8) : Color(white: 0.35))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 6)
             }
 
             if items.count < 3 {
@@ -173,7 +189,7 @@ struct EntryView: View {
         }
     }
 
-    // MARK: Evening — check off + prove / explain
+    // MARK: Evening - check off + prove / explain
 
     private var editPlanBar: some View {
         HStack {
@@ -183,7 +199,7 @@ struct EntryView: View {
                 .foregroundStyle(Color(white: 0.35))
             Spacer()
             if game.editsLocked {
-                // Plan froze at noon — review only from here.
+                // Plan froze at noon - review only from here.
                 HStack(spacing: 5) {
                     Image(systemName: "lock.fill")
                     Text("Locked at noon")
@@ -238,6 +254,11 @@ struct EntryView: View {
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundStyle(.white)
                                         .strikethrough(item.isDone, color: Color(white: 0.4))
+                                    if item.isGameBall {
+                                        Image(systemName: "basketball.fill")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(accent)
+                                    }
                                     Spacer()
                                 }
                             }
@@ -355,6 +376,13 @@ struct EntryView: View {
             }
     }
 
+    // Only one task can be the game ball - selecting one clears the rest.
+    private func toggleGameBall(_ id: UUID) {
+        for i in items.indices {
+            items[i].isGameBall = (items[i].id == id) ? !items[i].isGameBall : false
+        }
+    }
+
     private func addItem() {
         let trimmed = newItem.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -412,7 +440,7 @@ private struct CoachingSheet: View {
                             Text("Your plan is sharp.")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundStyle(.white)
-                            Text("Nothing vague to tighten — lock it in.")
+                            Text("Nothing vague to tighten - lock it in.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(Color(white: 0.45))
                         }

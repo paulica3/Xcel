@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct AccountView: View {
     @Environment(AppSettings.self) private var settings
@@ -40,6 +41,19 @@ struct AccountView: View {
                         LazyVGrid(columns: columns, spacing: 14) {
                             ForEach(AccentTheme.allCases) { theme in
                                 swatch(theme)
+                            }
+                        }
+                    }
+
+                    section("YOUR GUIDE") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Changes how the Judge talks to you. Never how you're scored.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(white: 0.4))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.bottom, 2)
+                            ForEach(Guide.allCases) { g in
+                                guideRow(g)
                             }
                         }
                     }
@@ -232,6 +246,54 @@ struct AccountView: View {
                 .kerning(2)
                 .foregroundStyle(Color(white: 0.35))
             content()
+        }
+    }
+
+    // Shows the comic portrait once its asset exists; falls back to a glyph tile.
+    @ViewBuilder
+    private func guideAvatar(_ g: Guide, selected: Bool) -> some View {
+        if UIImage(named: g.imageName) != nil {
+            Image(g.imageName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 46, height: 46)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? accent : .clear, lineWidth: 2))
+        } else {
+            Image(systemName: g.icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(selected ? .black : accent)
+                .frame(width: 46, height: 46)
+                .background(selected ? accent : Color(white: 0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func guideRow(_ g: Guide) -> some View {
+        let selected = g == settings.guide
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) { settings.guide = g }
+        } label: {
+            HStack(spacing: 14) {
+                guideAvatar(g, selected: selected)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(g.name)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text(g.blurb)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.45))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(selected ? accent : Color(white: 0.25))
+            }
+            .padding(14)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? accent.opacity(0.4) : .clear, lineWidth: 1))
         }
     }
 

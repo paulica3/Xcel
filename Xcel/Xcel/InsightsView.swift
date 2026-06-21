@@ -100,6 +100,18 @@ struct InsightsView: View {
             sub: "\(i.wins)–\(i.losses) · \(i.gamesPlayed) games"
         ), accent: accent)
 
+        if let c = i.comparison, c.hasPrev {
+            comparisonCard(c)
+        }
+
+        if i.boxAverages.hasData {
+            AverageBoxScoreView(averages: i.boxAverages, accent: accent)
+        }
+
+        if i.boxTrend.hasData {
+            BoxTrendView(trend: i.boxTrend, accent: accent)
+        }
+
         if !i.summary.isEmpty {
             Text(i.summary)
                 .font(.system(size: 15))
@@ -171,6 +183,61 @@ struct InsightsView: View {
         .background(Color(white: 0.07))
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(color.opacity(0.3), lineWidth: 1))
+    }
+
+    private func comparisonCard(_ c: SeasonComparison) -> some View {
+        let winPts = Int((c.winRateDelta * 100).rounded())
+        let boxD = c.boxDelta
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("YOU vs PRIOR 30 DAYS")
+                .font(.system(size: 10, weight: .bold))
+                .kerning(2)
+                .foregroundStyle(accent)
+            HStack(spacing: 12) {
+                compareTile(
+                    label: "WIN RATE",
+                    value: "\(Int((c.currentWinRate * 100).rounded()))%",
+                    deltaText: "\(winPts >= 0 ? "+" : "−")\(abs(winPts)) pts",
+                    up: winPts >= 0, flat: winPts == 0
+                )
+                compareTile(
+                    label: "AVG BOX",
+                    value: String(format: "%.1f", c.currentBox),
+                    deltaText: "\(boxD >= 0 ? "+" : "−")\(String(format: "%.1f", abs(boxD)))",
+                    up: boxD >= 0, flat: abs(boxD) < 0.05
+                )
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func compareTile(label: String, value: String, deltaText: String, up: Bool, flat: Bool) -> some View {
+        let color = flat ? Color(white: 0.5) : (up ? accent : Color.eliminationRed)
+        return VStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .kerning(1)
+                .foregroundStyle(Color(white: 0.4))
+            Text(value)
+                .font(.system(size: 26, weight: .black))
+                .foregroundStyle(.white)
+                .monospacedDigit()
+            HStack(spacing: 3) {
+                Image(systemName: flat ? "minus" : (up ? "arrow.up.right" : "arrow.down.right"))
+                    .font(.system(size: 10, weight: .bold))
+                Text(flat ? "flat" : deltaText)
+                    .font(.system(size: 11, weight: .bold))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(Color(white: 0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func sectionTitle(_ text: String, _ icon: String) -> some View {
