@@ -1,10 +1,12 @@
 import SwiftUI
+import SwiftData
 
 // Read-only recap of a single game: verdict, one-liner, checklist, coach's notes.
 struct GameResultView: View {
     let game: Game
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     private var accent: Color { settings.accent.color }
 
@@ -33,6 +35,8 @@ struct GameResultView: View {
                     }
 
                     verdictBlock
+
+                    injuredReserveBlock
 
                     if game.hasBoxScore {
                         BoxScoreView(effort: game.scoreEffort, discipline: game.scoreDiscipline,
@@ -92,6 +96,50 @@ struct GameResultView: View {
                         .foregroundStyle(.white)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var injuredReserveBlock: some View {
+        if game.excused {
+            HStack(spacing: 10) {
+                Image(systemName: "cross.case.fill")
+                    .foregroundStyle(accent)
+                Text("Injured Reserve — this loss doesn't count.")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else if game.verdict == .loss, game.series?.canUseInjuredReserve == true {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Real life got in the way? You've got one Injured Reserve this series — use it to wipe this L from the record.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(white: 0.6))
+                Button {
+                    game.excused = true
+                    try? modelContext.save()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "cross.case.fill")
+                        Text("Place on Injured Reserve")
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.3), lineWidth: 1))
         }
     }
 
@@ -225,6 +273,7 @@ struct SeriesDetailView: View {
     }
 
     private func badge(for game: Game) -> String {
+        if game.excused { return "IR" }
         switch game.verdict {
         case .win: return "W"
         case .loss: return "L"
@@ -233,6 +282,7 @@ struct SeriesDetailView: View {
     }
 
     private func color(for game: Game) -> Color {
+        if game.excused { return accent.opacity(0.7) }
         switch game.verdict {
         case .win: return accent
         case .loss: return Color(white: 0.4)

@@ -34,6 +34,15 @@ struct SeriesRecapCard: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Color(white: 0.68))
                         .fixedSize(horizontal: false, vertical: true)
+
+                    ShareCardButton(content: ShareCardContent(
+                        tag: "THE SERIES",
+                        big: "\(series.wins)–\(series.losses)",
+                        bigIsWin: series.seriesResult == .won,
+                        headline: series.recapHeadline.isEmpty ? "Another week in the books." : series.recapHeadline,
+                        sub: series.seriesResult == .won ? (series.wasComeback ? "Series won · comeback" : "Series won") : "Series wrapped"
+                    ), accent: accent)
+                    .padding(.top, 4)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)

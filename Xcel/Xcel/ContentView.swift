@@ -47,13 +47,20 @@ struct ContentView: View {
         try? modelContext.save()
     }
 
-    // Top up the dated 4pm check-up notifications with the current series score.
+    // Refresh the state-driven notifications (4pm check-up + high-stakes alerts)
+    // with the current series score on each app open.
     private func refreshCheckups() {
         let series = currentSeries
+        let wins = series?.wins ?? 0
+        let losses = series?.losses ?? 0
         NotificationManager.scheduleCheckups(
             enabled: settings.notificationsEnabled,
-            wins: series?.wins ?? 0,
-            losses: series?.losses ?? 0
+            wins: wins, losses: losses
+        )
+        NotificationManager.scheduleStakes(
+            enabled: settings.notificationsEnabled && settings.stakesNotificationsEnabled
+                && !(series?.isWarmup ?? false),
+            wins: wins, losses: losses
         )
     }
 

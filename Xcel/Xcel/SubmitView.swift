@@ -167,6 +167,10 @@ struct SubmitView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Color(white: 0.38))
                 }
+
+                ShareCardButton(content: shareContent(r), accent: accent)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 4)
             }
             Spacer()
             Button(action: onComplete) {
@@ -181,6 +185,18 @@ struct SubmitView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 52)
         }
+    }
+
+    private func shareContent(_ r: JudgeResult) -> ShareCardContent {
+        let wins = game.series?.wins ?? 0
+        let losses = game.series?.losses ?? 0
+        return ShareCardContent(
+            tag: "GAME \(game.gameNumber)",
+            big: r.verdict == .win ? "W" : "L",
+            bigIsWin: r.verdict == .win,
+            headline: r.oneLiner,
+            sub: "\(wins)–\(losses) in the series"
+        )
     }
 
     // MARK: After the reveal animation — show verdict, then any celebration

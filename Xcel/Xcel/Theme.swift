@@ -59,6 +59,13 @@ final class AppSettings {
     var notificationsEnabled: Bool {
         didSet { UserDefaults.standard.set(notificationsEnabled, forKey: Keys.notifEnabled); applySchedule() }
     }
+    // High-stakes elimination/comeback alerts (separate from the daily ritual).
+    var stakesNotificationsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(stakesNotificationsEnabled, forKey: Keys.stakesEnabled)
+            if !stakesNotificationsEnabled { NotificationManager.scheduleStakes(enabled: false, wins: 0, losses: 0) }
+        }
+    }
     var morningHour: Int { didSet { UserDefaults.standard.set(morningHour, forKey: Keys.morningHour); applySchedule() } }
     var morningMinute: Int { didSet { UserDefaults.standard.set(morningMinute, forKey: Keys.morningMinute); applySchedule() } }
     var eveningHour: Int { didSet { UserDefaults.standard.set(eveningHour, forKey: Keys.eveningHour); applySchedule() } }
@@ -93,6 +100,7 @@ final class AppSettings {
         static let userName = "userName"
         static let hasOnboarded = "hasOnboarded"
         static let notifEnabled = "notifEnabled"
+        static let stakesEnabled = "stakesEnabled"
         static let morningHour = "morningHour"
         static let morningMinute = "morningMinute"
         static let eveningHour = "eveningHour"
@@ -106,6 +114,7 @@ final class AppSettings {
         self.profileImageData = Self.readAvatar()
         self.hasOnboarded = d.bool(forKey: Keys.hasOnboarded)
         self.notificationsEnabled = d.object(forKey: Keys.notifEnabled) as? Bool ?? true
+        self.stakesNotificationsEnabled = d.object(forKey: Keys.stakesEnabled) as? Bool ?? true
         self.morningHour = d.object(forKey: Keys.morningHour) as? Int ?? 9
         self.morningMinute = d.object(forKey: Keys.morningMinute) as? Int ?? 0
         self.eveningHour = d.object(forKey: Keys.eveningHour) as? Int ?? 20

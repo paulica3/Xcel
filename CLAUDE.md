@@ -56,7 +56,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Home is a landing page**, not the game. Users do NOT jump straight into the series. Home → "Enter the arena" → `SeriesView` (scoreboard).
 - `Theme.swift` — `AppSettings` (`@Observable`, injected via `.environment`, persisted to UserDefaults) holds the user's accent color + name. `AccentTheme` enum = 8 neon colors (green, orange, blue, pink, purple, cyan, red, gold). All views read `settings.accent.color`; never hardcode the accent.
 - `BrandingViews.swift` — `WavingTitle` (accent sweeps across the wordmark) and `XtinctBadge` ("POWERED BY XTINCT AI" with subtle chaotic jitter). **XTINCT AI is the company building the app** — keep the attribution.
-- `AccountView` is functional: name, accent color picker, profile photo, adjustable reminder times, and a **Season insights** entry point (`InsightsView`). "Go Premium" remains a placeholder row.
+- `AccountView` is functional: name, accent color picker, profile photo, adjustable reminder times, a high-stakes-alerts toggle, and entry points to **Season insights** (`InsightsView`) and the **Trophy case** (`TrophyCaseView`). "Go Premium" remains a placeholder row.
 
 ---
 
@@ -68,17 +68,27 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Daily checklist journal entry (morning plan + evening proof)
 - ✅ AI Win/Loss verdict with a one-liner + coach's notes
 - ✅ Weekly series scoreline + basic series history
-- ✅ Two-touch ritual + daily notifications, noon edit lock
+- ✅ Two-touch ritual + 4 daily notifications (morning, 11:30 lock warning, 4pm score check-up, evening), noon edit lock
+- ✅ Injured Reserve — one excused loss per series (`Game.excused`, `Series.canUseInjuredReserve`)
 
 ### Premium candidates (built on `main` now, may become paid later)
 - ✅ Season stats on Home (all-time record, streak, best comeback)
 - ✅ Season insights / monthly "vs Life" verdict + AI pattern analysis (`InsightsService`/`InsightsView`)
 - ✅ Animated verdict reveals + series clinch celebrations
-- Box Score Breakdown — day scored across Effort, Discipline, Mood, Productivity
-- Voice-to-text entry (Speech → AI)
+- ✅ Box Score Breakdown — day scored 0-10 on Effort / Discipline / Mood / Productivity (`BoxScoreView`, scores on `Game` + `JudgeResult`)
+- ✅ Voice-to-text evening entry (Apple Speech, on-device; `Dictation.swift` / `MicButton`)
+- ✅ End-of-week AI series recap, broadcast style (`RecapService` / `SeriesRecapCard`)
+- ✅ Intention coaching — AI tightens vague morning tasks before lock-in (`CoachService` / `CoachingSheet`)
+- ✅ Share cards — branded W/L / verdict image to IG Stories, share sheet (WhatsApp/Telegram/Messages/…); `Share.swift`
+- ✅ Trophy case — all-time achievement badges (`TrophyCaseView`)
+- ✅ High-stakes elimination/comeback notifications, separately toggleable
 - AI Commentator Personalities: Hype-man, Brutal Analyst, Calm Vet Coach
-- End-of-week AI recap (optionally read aloud in broadcast style)
 - **Intention checklist + photo proof** (planned): AI turns the morning intention into a checklist; user checks off items and attaches a Photos-library image. App reads the photo's EXIF date to confirm it's same-day, and uses on-device Vision/AI to check the image matches the intention. Needs PhotoKit + Vision + EXIF — substantial; design as its own phase.
+
+### Blocked on Apple Developer Program (own phase)
+These need paid-program capabilities/entitlements (and, for widgets, a new embedded extension target) — can't be built/provisioned on a free Apple ID and shouldn't be hand-wired via CLI. Tackle once enrolled.
+- **HealthKit / screen-time auto-verification** — confirm tasks (workout, sleep, screen time) from HealthKit instead of pure self-report. Needs the HealthKit entitlement + usage strings + provisioning.
+- **Widgets + Live Activity** — today's scoreline on Home screen / Dynamic Island ("Game 6 tonight"). Needs a WidgetKit app-extension target + App Group entitlement (shared SwiftData/UserDefaults) + ActivityKit.
 
 ### League candidates
 - Conferences with friends

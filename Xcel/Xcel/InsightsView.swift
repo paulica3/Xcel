@@ -92,6 +92,14 @@ struct InsightsView: View {
     private func content(_ i: MonthlyInsights) -> some View {
         verdictCard(i)
 
+        ShareCardButton(content: ShareCardContent(
+            tag: "LAST 30 DAYS",
+            big: i.wonAgainstLife ? "W" : "L",
+            bigIsWin: i.wonAgainstLife,
+            headline: i.headline,
+            sub: "\(i.wins)–\(i.losses) · \(i.gamesPlayed) games"
+        ), accent: accent)
+
         if !i.summary.isEmpty {
             Text(i.summary)
                 .font(.system(size: 15))

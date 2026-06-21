@@ -135,6 +135,7 @@ struct SeriesView: View {
     }
 
     private func dotColor(for game: Game) -> Color {
+        if game.excused { return accent.opacity(0.35) }
         switch game.verdict {
         case .win: return accent
         case .loss: return Color(white: 0.25)
@@ -180,10 +181,11 @@ struct SeriesView: View {
 
     private func logRow(_ game: Game) -> some View {
         let isWin = game.verdict == .win
+        let badge = game.excused ? "IR" : (isWin ? "W" : "L")
         return HStack(spacing: 14) {
-            Text(isWin ? "W" : "L")
-                .font(.system(size: 20, weight: .black))
-                .foregroundStyle(isWin ? accent : Color(white: 0.4))
+            Text(badge)
+                .font(.system(size: game.excused ? 14 : 20, weight: .black))
+                .foregroundStyle(game.excused ? accent.opacity(0.7) : (isWin ? accent : Color(white: 0.4)))
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {

@@ -34,9 +34,16 @@ final class Series {
         self.games = []
     }
 
-    var wins: Int { games.filter { $0.verdict == .win }.count }
-    var losses: Int { games.filter { $0.verdict == .loss }.count }
+    var wins: Int { games.filter { $0.verdict == .win && !$0.excused }.count }
+    var losses: Int { games.filter { $0.verdict == .loss && !$0.excused }.count }
     var judgedCount: Int { games.filter { $0.verdict != .pending }.count }
+
+    // One Injured Reserve per series: a single loss can be excused so it doesn't
+    // count against the record (real life happens — once a week, no questions).
+    var injuredReserveUsed: Bool { games.contains { $0.excused } }
+    var canUseInjuredReserve: Bool {
+        !isWarmup && !injuredReserveUsed && games.contains { $0.verdict == .loss && !$0.excused }
+    }
 
     // Games the user can still play: today + future days this week that are
     // unjudged. Excludes days before the user started (they're void, not losses).
@@ -63,7 +70,7 @@ final class Series {
     var wasComeback: Bool {
         guard seriesResult == .won else { return false }
         var w = 0, l = 0, trailedBy2 = false
-        for game in games.sorted(by: { $0.gameNumber < $1.gameNumber }) {
+        for game in games.sorted(by: { $0.gameNumber < $1.gameNumber }) where !game.excused {
             switch game.verdict {
             case .win: w += 1
             case .loss: l += 1
@@ -117,6 +124,8 @@ final class Game {
     var scoreDiscipline: Int = 0
     var scoreMood: Int = 0
     var scoreProductivity: Int = 0
+    // Placed on Injured Reserve — the loss is excused and doesn't count.
+    var excused: Bool = false
     var series: Series?
 
     init(date: Date, gameNumber: Int) {
@@ -175,8 +184,9 @@ struct CareerStats {
         var judged: [Game] = []
 
         // Warm-up weeks are practice — they don't count toward the career record.
+        // Excused (Injured Reserve) days don't count either.
         for series in allSeries where !series.isWarmup {
-            for game in series.games {
+            for game in series.games where !game.excused {
                 switch game.verdict {
                 case .win: wins += 1; judged.append(game)
                 case .loss: losses += 1; judged.append(game)

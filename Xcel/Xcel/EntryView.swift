@@ -13,6 +13,9 @@ struct EntryView: View {
     @State private var extraNotes = ""
     @State private var goToSubmit = false
     @State private var editingPlan = false
+    @State private var coachings: [TaskCoaching] = []
+    @State private var coachLoading = false
+    @State private var showCoaching = false
 
     private var accent: Color { settings.accent.color }
     private var isMorning: Bool { game.checklist.isEmpty }
@@ -127,6 +130,46 @@ struct EntryView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 8)
+
+            if !items.isEmpty {
+                Button(action: runCoach) {
+                    HStack(spacing: 8) {
+                        if coachLoading {
+                            ProgressView().tint(accent).scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "sparkles")
+                        }
+                        Text(coachLoading ? "Coach is reading…" : "Tighten my plan")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .disabled(coachLoading)
+                .padding(.horizontal, 24)
+                .padding(.top, 4)
+            }
+        }
+        .sheet(isPresented: $showCoaching) {
+            CoachingSheet(coachings: coachings, accent: accent) { suggestion in
+                if items.indices.contains(suggestion.index) {
+                    items[suggestion.index].title = suggestion.improved
+                }
+            }
+        }
+    }
+
+    private func runCoach() {
+        coachLoading = true
+        let titles = items.map(\.title)
+        Task {
+            let result = await CoachService.refine(titles)
+            await MainActor.run {
+                coachLoading = false
+                coachings = result
+                showCoaching = true
+            }
         }
     }
 
@@ -324,5 +367,122 @@ struct EntryView: View {
         guard !trimmed.isEmpty else { return }
         items.append(ChecklistItem(title: trimmed))
         eveningNewItem = ""
+    }
+}
+
+// Coach suggestions for tightening vague tasks; accept to apply the rewrite.
+private struct CoachingSheet: View {
+    let coachings: [TaskCoaching]
+    let accent: Color
+    let onAccept: (TaskCoaching) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var remaining: [TaskCoaching] = []
+    @State private var didLoad = false
+
+    var body: some View {
+        ZStack {
+            Color.arenaBlack.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("THE COACH")
+                                .font(.system(size: 11, weight: .bold))
+                                .kerning(2.5)
+                                .foregroundStyle(accent)
+                            Text("Tighten your plan")
+                                .font(.system(size: 24, weight: .black))
+                                .foregroundStyle(.white)
+                        }
+                        Spacer()
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(Color(white: 0.45))
+                        }
+                    }
+                    .padding(.top, 8)
+
+                    if remaining.isEmpty {
+                        VStack(spacing: 10) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 36))
+                                .foregroundStyle(accent)
+                            Text("Your plan is sharp.")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text("Nothing vague to tighten — lock it in.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color(white: 0.45))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 50)
+                    } else {
+                        ForEach(remaining) { c in
+                            card(c)
+                        }
+                    }
+                }
+                .padding(24)
+            }
+        }
+        .onAppear {
+            guard !didLoad else { return }
+            remaining = coachings
+            didLoad = true
+        }
+    }
+
+    private func card(_ c: TaskCoaching) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(c.original)
+                .font(.system(size: 14))
+                .strikethrough(color: Color(white: 0.4))
+                .foregroundStyle(Color(white: 0.5))
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.turn.down.right")
+                    .font(.system(size: 12))
+                    .foregroundStyle(accent)
+                Text(c.improved)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            if !c.reason.isEmpty {
+                Text(c.reason)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(white: 0.45))
+            }
+            HStack(spacing: 10) {
+                Button {
+                    onAccept(c)
+                    remaining.removeAll { $0.id == c.id }
+                } label: {
+                    Text("Use this")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                Button {
+                    remaining.removeAll { $0.id == c.id }
+                } label: {
+                    Text("Keep mine")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(white: 0.6))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(white: 0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            .padding(.top, 2)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }

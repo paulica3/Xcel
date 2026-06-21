@@ -11,7 +11,22 @@ enum NotificationManager {
         static let evening = "xcel.evening"
         // The 4pm check-up is scheduled per-day so it can carry the live score.
         static let checkupPrefix = "xcel.checkup."
+        static let stakes = "xcel.stakes"
     }
+
+    // The series situation that warrants a high-stakes alert.
+    enum Stakes {
+        case none, elimination, comeback
+
+        static func forSeries(wins: Int, losses: Int) -> Stakes {
+            if losses == 3 && wins < 4 { return .elimination }
+            if losses - wins >= 2 { return .comeback }
+            return .none
+        }
+    }
+
+    private static let stakesHour = 17
+    private static let stakesMinute = 30
 
     // The morning plan locks at noon; the 4pm check-up fires mid-afternoon.
     static let lockHour = 12
@@ -73,6 +88,39 @@ enum NotificationManager {
             center.add(UNNotificationRequest(identifier: "\(Id.checkupPrefix)\(offset)",
                                              content: content, trigger: trigger))
         }
+    }
+
+    // High-stakes alert for today when the series is on the line. Cleared and
+    // re-evaluated on each app open.
+    static func scheduleStakes(enabled: Bool, wins: Int, losses: Int) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [Id.stakes])
+        guard enabled else { return }
+
+        let stakes = Stakes.forSeries(wins: wins, losses: losses)
+        let title: String, body: String
+        switch stakes {
+        case .none: return
+        case .elimination:
+            title = "Elimination game tonight"
+            body = "Down \(wins)–\(losses). Win tonight or the series is over. Leave it all out there."
+        case .comeback:
+            title = "The comeback's alive"
+            body = "Down \(wins)–\(losses), but not out. Stack the wins and steal this series."
+        }
+
+        let cal = Calendar.current
+        var comps = cal.dateComponents([.year, .month, .day], from: Date())
+        comps.hour = stakesHour
+        comps.minute = stakesMinute
+        guard let fire = cal.date(from: comps), fire > Date() else { return }
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        center.add(UNNotificationRequest(identifier: Id.stakes, content: content, trigger: trigger))
     }
 
     private static func checkupBody(wins: Int, losses: Int) -> String {

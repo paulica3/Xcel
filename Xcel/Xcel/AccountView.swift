@@ -7,6 +7,7 @@ struct AccountView: View {
 
     @State private var photoItem: PhotosPickerItem?
     @State private var showInsights = false
+    @State private var showTrophies = false
 
     private var accent: Color { settings.accent.color }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
@@ -24,6 +25,7 @@ struct AccountView: View {
                     profilePhoto
 
                     insightsRow
+                    trophyRow
 
                     section("YOUR NAME") {
                         TextField("Name", text: $settings.userName)
@@ -63,10 +65,36 @@ struct AccountView: View {
                                 timeRow("sunrise.fill", "Morning plan", $settings.morningTime)
                                 divider
                                 timeRow("moon.stars.fill", "Evening log", $settings.eveningTime)
+                                divider
+                                Toggle(isOn: $settings.stakesNotificationsEnabled) {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: "flame.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(Color.eliminationRed)
+                                            .frame(width: 24)
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text("High-stakes alerts")
+                                                .font(.system(size: 16))
+                                                .foregroundStyle(.white)
+                                            Text("Elimination & comeback games")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(Color(white: 0.4))
+                                        }
+                                    }
+                                }
+                                .tint(accent)
+                                .padding(16)
                             }
                         }
                         .background(Color(white: 0.07))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    section("MORE NOTIFICATIONS") {
+                        Text("You also get a noon lock reminder and a 4 PM check-up with your score. All daily reminders turn off with the toggle above.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(white: 0.4))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     section("COMING SOON") {
@@ -81,6 +109,36 @@ struct AccountView: View {
             }
         }
         .sheet(isPresented: $showInsights) { InsightsView() }
+        .sheet(isPresented: $showTrophies) { TrophyCaseView() }
+    }
+
+    private var trophyRow: some View {
+        Button { showTrophies = true } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 38, height: 38)
+                    .background(accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Trophy case")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("All-time badges & achievements")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.35))
+            }
+            .padding(14)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.25), lineWidth: 1))
+        }
     }
 
     private var insightsRow: some View {
