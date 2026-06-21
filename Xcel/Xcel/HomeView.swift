@@ -221,6 +221,7 @@ struct HomeView: View {
         case .won:  return "SERIES WON"
         case .lost: return "SERIES LOST"
         case .inProgress:
+            if series.isWarmup { return "WARM-UP WEEK" }
             if series.userFacingElimination { return "ELIMINATION GAME TONIGHT" }
             if let game = todayGame, game.verdict == .pending {
                 return "GAME \(game.gameNumber) TONIGHT"

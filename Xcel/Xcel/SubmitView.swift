@@ -88,6 +88,14 @@ struct SubmitView: View {
                 }
             }
             Spacer()
+            if let note = JudgeService.practiceJudgeNote {
+                Text(note)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(white: 0.4))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 12)
+            }
             Button { submit() } label: {
                 Text("Submit Game \(game.gameNumber)")
                     .font(.system(size: 17, weight: .bold))

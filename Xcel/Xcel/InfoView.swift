@@ -35,6 +35,8 @@ struct InfoView: View {
                              "Skip a day and it's an automatic L. No-shows don't get a pass.")
                         rule("gavel.fill", "The Judge",
                              "Tough but fair. Rewards honesty and real effort — sees right through vague proof and excuses.")
+                        rule("figure.run", "Warm-up week",
+                             "Join mid-week and your first few days are a warm-up — get your reps in. Your first real series tips off the next Monday.")
                     }
 
                     XtinctBadge(accent: accent)

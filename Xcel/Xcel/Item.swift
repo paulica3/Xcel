@@ -6,12 +6,17 @@ final class Series {
     var id: UUID
     var weekStart: Date
     var createdAt: Date
+    // A warm-up is the user's first week when they joined mid-week: full 4 wins
+    // is impossible, so it's reps-only — judged for practice, not counted as a
+    // real series. The first real best-of-7 starts the following Monday.
+    var isWarmup: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \Game.series) var games: [Game]
 
-    init(weekStart: Date) {
+    init(weekStart: Date, isWarmup: Bool = false) {
         self.id = UUID()
         self.weekStart = weekStart
         self.createdAt = Date()
+        self.isWarmup = isWarmup
         self.games = []
     }
 
@@ -29,13 +34,16 @@ final class Series {
     }
 
     var seriesResult: SeriesResult {
+        // A warm-up never clinches — it stays "in progress" so it's never
+        // framed as a won or lost series.
+        if isWarmup { return .inProgress }
         if wins >= 4 { return .won }
         if losses >= 4 { return .lost }
         return .inProgress
     }
 
-    // User must win or the series is over (down 1-3, 0-3, etc).
-    var userFacingElimination: Bool { losses == 3 && wins < 4 }
+    // User must win or the series is over (down 1-3, 0-3, etc). Not in warm-up.
+    var userFacingElimination: Bool { !isWarmup && losses == 3 && wins < 4 }
 
     // Won the series after trailing by 2+ games at some point — the marquee arc.
     var wasComeback: Bool {
@@ -134,7 +142,8 @@ struct CareerStats {
         var wins = 0, losses = 0
         var judged: [Game] = []
 
-        for series in allSeries {
+        // Warm-up weeks are practice — they don't count toward the career record.
+        for series in allSeries where !series.isWarmup {
             for game in series.games {
                 switch game.verdict {
                 case .win: wins += 1; judged.append(game)
@@ -152,7 +161,7 @@ struct CareerStats {
 
         // Best comeback: deepest hole climbed out of in any series the user won.
         var bestDeficit = 0
-        for series in allSeries where series.seriesResult == .won {
+        for series in allSeries where !series.isWarmup && series.seriesResult == .won {
             var w = 0, l = 0, maxDeficit = 0
             for game in series.games.sorted(by: { $0.gameNumber < $1.gameNumber }) {
                 switch game.verdict {

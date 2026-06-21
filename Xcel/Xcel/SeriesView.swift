@@ -73,7 +73,12 @@ struct SeriesView: View {
 
     private var scoreboard: some View {
         VStack(spacing: 12) {
-            if let game = todayGame {
+            if series.isWarmup {
+                Text("WARM-UP WEEK")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(accent)
+                    .kerning(2.5)
+            } else if let game = todayGame {
                 Text("GAME \(game.gameNumber) OF 7")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color(white: 0.35))
@@ -257,6 +262,9 @@ struct SeriesView: View {
     private func statusLine(for series: Series) -> String {
         let remaining = series.gamesRemaining
         let games = remaining == 1 ? "1 game left" : "\(remaining) games left"
+        if series.isWarmup {
+            return "Reps only — your real series starts Monday. \(games)."
+        }
         switch series.seriesResult {
         case .won: return "Series W · \(series.wins)–\(series.losses)"
         case .lost: return "Series L · \(series.wins)–\(series.losses)"

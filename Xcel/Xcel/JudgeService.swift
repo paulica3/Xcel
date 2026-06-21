@@ -39,6 +39,23 @@ enum JudgeStance {
 // simulators when Apple Intelligence is enabled in macOS). Falls back to a
 // credibility-aware heuristic judge only when the model is unavailable.
 struct JudgeService {
+    // nil when the real on-device AI judge is ready; otherwise a short, friendly
+    // line explaining why the practice judge is standing in.
+    static var practiceJudgeNote: String? {
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return nil
+        case .unavailable(.appleIntelligenceNotEnabled):
+            return "Practice judge — turn on Apple Intelligence in Settings for the real AI."
+        case .unavailable(.deviceNotEligible):
+            return "Practice judge — this device doesn't support Apple Intelligence."
+        case .unavailable(.modelNotReady):
+            return "Practice judge — the AI is still downloading. Try again shortly."
+        case .unavailable:
+            return "Practice judge — Apple Intelligence isn't available right now."
+        }
+    }
+
     func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int) async throws -> JudgeResult {
         let stance = JudgeStance.forSeries(wins: wins, losses: losses)
         do {
@@ -64,7 +81,9 @@ private struct AppleIntelligenceJudge {
 
     Decide the day: W (win) or L (loss), then write:
     - oneLiner: one punchy broadcast-style sentence delivering the verdict, framed within the series.
-    - feedback: 2-4 sentences of coach's notes — name specific tasks, call out weak/nonsense proof directly, say what could've been better and what to improve tomorrow.
+    - feedback: 2-4 sentences of coach's notes. ALWAYS quote or name the actual tasks and proof — never speak in generic terms.
+      • On a WIN: make the praise EARNED and SPECIFIC. Name the exact task(s) they executed and what in their proof sold it. Call out the single strongest moment of the day. Then give one concrete way to push further tomorrow. BANNED — never write empty filler like "you showed up", "good job", "keep it up", "nice work", "stay consistent", "build momentum". If you can't point to something specific they did, it wasn't a win.
+      • On a LOSS: name the weak/nonsense/empty proof directly and the one task to protect tomorrow.
 
     Other rules:
     - Reward honesty, specificity, and real effort. Penalize vague proof and flimsy excuses.
@@ -152,14 +171,29 @@ private struct MockJudge {
         let oneLiner: String
         let feedback: String
         if verdict == .win {
+            // Name the standout: the credited task with the most substantial proof.
+            let creditedItems = checklist.filter { $0.isDone && Credibility.isCredible($0.note) }
+            let standout = creditedItems.max { $0.note.count < $1.note.count }
+
             oneLiner = hadHardship
                 ? "Life threw a curveball and you kept your integrity. The judge respects it — W."
                 : "\(credited) of \(total) backed up with real proof. That's a W."
-            var notes = "You showed up where it counted."
-            if !fakeProof.isEmpty {
-                notes += " But the proof on \(fakeProof.count) item\(fakeProof.count == 1 ? "" : "s") was thin — tighten it up so it can't be questioned."
+
+            var notes: String
+            if let standout {
+                notes = "“\(standout.title)” was the anchor of the day — the receipt on it held up, no hand-waving."
+            } else {
+                notes = "You handled what life threw at you without dropping your standards."
             }
-            notes += " Stack two clean days in a row to build real momentum."
+            if creditedItems.count > 1 {
+                notes += " Backing it with \(credited) of \(total) is what tipped this to a W."
+            }
+            if !fakeProof.isEmpty {
+                let names = fakeProof.prefix(2).map { "“\($0.title)”" }.joined(separator: ", ")
+                notes += " Where it got shaky: the proof on \(names) was thin — write it like you'd have to defend it."
+            } else {
+                notes += " Tomorrow, raise it: add a harder task and prove that one too."
+            }
             feedback = notes
         } else {
             oneLiner = "\(credited) of \(total) held up. Not enough — L."
