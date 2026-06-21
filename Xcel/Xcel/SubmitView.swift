@@ -10,11 +10,14 @@ struct SubmitView: View {
     @State private var phase: Phase = .ready
     @State private var result: JudgeResult? = nil
     @State private var errorMessage: String? = nil
-    @State private var isComeback = false
+    @State private var play: VerdictPlay? = nil
+    @State private var showCelebration = false
+    @State private var celebrationTitle = ""
+    @State private var celebrationSubtitle = ""
 
     private var accent: Color { settings.accent.color }
 
-    enum Phase { case ready, judging, verdict }
+    enum Phase { case ready, judging, revealing, verdict }
 
     var body: some View {
         ZStack {
@@ -22,10 +25,27 @@ struct SubmitView: View {
             switch phase {
             case .ready:   readyView
             case .judging: judgingView
+            case .revealing:
+                if let p = play {
+                    VerdictRevealView(
+                        play: p,
+                        accent: accent,
+                        onClimax: { p.isWin ? FX.win() : FX.loss() },
+                        onFinished: revealFinished
+                    )
+                }
             case .verdict: if let r = result { verdictView(r) }
             }
 
-            if isComeback { comebackOverlay }
+            if showCelebration {
+                CelebrationOverlay(
+                    title: celebrationTitle,
+                    subtitle: celebrationSubtitle,
+                    accent: accent,
+                    onDismiss: { withAnimation { showCelebration = false } }
+                )
+                .transition(.opacity)
+            }
         }
         .navigationBarHidden(true)
     }
@@ -149,33 +169,25 @@ struct SubmitView: View {
         }
     }
 
-    // MARK: Comeback celebration
+    // MARK: After the reveal animation — show verdict, then any celebration
 
-    private var comebackOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.92).ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text("COMEBACK")
-                    .font(.system(size: 44, weight: .black))
-                    .kerning(2)
-                    .foregroundStyle(accent)
-                Text("Down and out — and you took the series anyway.")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                Button { withAnimation { isComeback = false } } label: {
-                    Text("Let it sink in")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 14)
-                        .background(accent)
-                        .clipShape(Capsule())
+    private func revealFinished() {
+        withAnimation(.spring(duration: 0.45)) { phase = .verdict }
+
+        guard let series = game.series, result?.verdict == .win else { return }
+
+        if series.seriesResult == .won {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+                FX.comeback()
+                if series.wasComeback {
+                    celebrationTitle = "COMEBACK"
+                    celebrationSubtitle = "Down and out — and you took the series anyway."
+                } else {
+                    celebrationTitle = "SERIES WON"
+                    celebrationSubtitle = "You took the series \(series.wins)–\(series.losses)."
                 }
-                .padding(.top, 8)
+                withAnimation(.spring(duration: 0.5)) { showCelebration = true }
             }
-            .transition(.scale.combined(with: .opacity))
         }
     }
 
@@ -203,19 +215,9 @@ struct SubmitView: View {
                     try? modelContext.save()
                     result = judgeResult
 
-                    let clinchedComeback = judgeResult.verdict == .win
-                        && (game.series?.seriesResult == .won)
-                        && (game.series?.wasComeback ?? false)
-
-                    if judgeResult.verdict == .win { FX.win() } else { FX.loss() }
-                    withAnimation(.spring(duration: 0.5)) { phase = .verdict }
-
-                    if clinchedComeback {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                            FX.comeback()
-                            withAnimation(.spring(duration: 0.6)) { isComeback = true }
-                        }
-                    }
+                    // Hand off to the animated play; FX + verdict fire from there.
+                    play = VerdictPlay.random(for: judgeResult.verdict)
+                    withAnimation(.easeInOut(duration: 0.3)) { phase = .revealing }
                 }
             } catch {
                 await MainActor.run {

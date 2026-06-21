@@ -18,9 +18,15 @@ struct SeriesView: View {
 
             VStack(spacing: 0) {
                 header
-                Spacer()
-                scoreboard
-                Spacer()
+                ScrollView {
+                    VStack(spacing: 0) {
+                        scoreboard
+                            .padding(.top, 32)
+                        weekLog
+                            .padding(.top, 36)
+                    }
+                    .padding(.bottom, 24)
+                }
                 ctaSection
             }
         }
@@ -126,6 +132,78 @@ struct SeriesView: View {
         }
     }
 
+    // MARK: This week's game log — past days you've logged, tap to review.
+
+    private var loggedGames: [Game] {
+        series.games
+            .filter { $0.verdict != .pending }
+            .sorted { $0.gameNumber > $1.gameNumber }
+    }
+
+    @ViewBuilder
+    private var weekLog: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("THIS WEEK")
+                .font(.system(size: 11, weight: .bold))
+                .kerning(2.5)
+                .foregroundStyle(Color(white: 0.35))
+                .padding(.horizontal, 4)
+
+            if loggedGames.isEmpty {
+                Text("No games logged yet. Win Game \(todayGame?.gameNumber ?? 1) tonight.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(white: 0.3))
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
+            } else {
+                ForEach(loggedGames) { game in
+                    NavigationLink {
+                        GameResultView(game: game)
+                    } label: {
+                        logRow(game)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func logRow(_ game: Game) -> some View {
+        let isWin = game.verdict == .win
+        return HStack(spacing: 14) {
+            Text(isWin ? "W" : "L")
+                .font(.system(size: 20, weight: .black))
+                .foregroundStyle(isWin ? accent : Color(white: 0.4))
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Game \(game.gameNumber) · \(dayLabel(game.date))")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                if !game.verdictOneLiner.isEmpty {
+                    Text(game.verdictOneLiner)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.45))
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color(white: 0.3))
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func dayLabel(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f.string(from: date)
+    }
+
     @ViewBuilder
     private var ctaSection: some View {
         if let game = todayGame {
@@ -177,13 +255,16 @@ struct SeriesView: View {
     }
 
     private func statusLine(for series: Series) -> String {
-        let remaining = 7 - series.judgedCount
+        let remaining = series.gamesRemaining
+        let games = remaining == 1 ? "1 game left" : "\(remaining) games left"
         switch series.seriesResult {
         case .won: return "Series W · \(series.wins)–\(series.losses)"
         case .lost: return "Series L · \(series.wins)–\(series.losses)"
         case .inProgress:
-            guard series.judgedCount > 0 else { return "7 games. 1 week. Let's go." }
-            let games = remaining == 1 ? "1 game left" : "\(remaining) games left"
+            guard series.judgedCount > 0 else {
+                let g = remaining == 1 ? "1 game" : "\(remaining) games"
+                return "\(g) this week. Let's go."
+            }
             if series.userFacingElimination { return "Down \(series.wins)–\(series.losses) · WIN OR GO HOME" }
             if series.losses - series.wins >= 2 { return "Down \(series.wins)–\(series.losses) · home court advantage in play" }
             if series.wins > series.losses { return "Up \(series.wins)–\(series.losses) · \(games)" }

@@ -9,8 +9,10 @@ struct EntryView: View {
     @Environment(AppSettings.self) private var settings
     @State private var items: [ChecklistItem] = []
     @State private var newItem = ""
+    @State private var eveningNewItem = ""
     @State private var extraNotes = ""
     @State private var goToSubmit = false
+    @State private var editingPlan = false
 
     private var accent: Color { settings.accent.color }
     private var isMorning: Bool { game.checklist.isEmpty }
@@ -130,41 +132,100 @@ struct EntryView: View {
 
     // MARK: Evening — check off + prove / explain
 
+    private var editPlanBar: some View {
+        HStack {
+            Text(editingPlan ? "EDIT THE PLAN" : "POSTGAME REVIEW")
+                .font(.system(size: 10, weight: .bold))
+                .kerning(2)
+                .foregroundStyle(Color(white: 0.35))
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { editingPlan.toggle() }
+            } label: {
+                Text(editingPlan ? "Done" : "Edit plan")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(accent)
+            }
+            .disabled(editingPlan && items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }.count < 3)
+        }
+        .padding(.bottom, 2)
+    }
+
     private var eveningReview: some View {
         ScrollView {
             VStack(spacing: 14) {
+                editPlanBar
+
                 ForEach($items) { $item in
                     VStack(alignment: .leading, spacing: 10) {
-                        Button {
-                            item.isDone.toggle()
-                        } label: {
+                        if editingPlan {
                             HStack(spacing: 12) {
-                                Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                                Image(systemName: "circle")
                                     .font(.system(size: 22))
-                                    .foregroundStyle(item.isDone ? accent : Color(white: 0.4))
-                                Text(item.title)
+                                    .foregroundStyle(accent.opacity(0.7))
+                                TextField("Task", text: $item.title)
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundStyle(.white)
-                                    .strikethrough(item.isDone, color: Color(white: 0.4))
-                                Spacer()
+                                Button {
+                                    items.removeAll { $0.id == item.id }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(Color(white: 0.3))
+                                }
                             }
-                        }
+                        } else {
+                            Button {
+                                item.isDone.toggle()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(item.isDone ? accent : Color(white: 0.4))
+                                    Text(item.title)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(.white)
+                                        .strikethrough(item.isDone, color: Color(white: 0.4))
+                                    Spacer()
+                                }
+                            }
 
-                        TextField(
-                            item.isDone ? "How'd you do it? (proof)" : "What happened? (reason)",
-                            text: $item.note,
-                            axis: .vertical
-                        )
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color(white: 0.7))
-                        .lineLimit(1...3)
-                        .padding(10)
-                        .background(Color(white: 0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                            TextField(
+                                item.isDone ? "How'd you do it? (proof)" : "What happened? (reason)",
+                                text: $item.note,
+                                axis: .vertical
+                            )
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color(white: 0.7))
+                            .lineLimit(1...3)
+                            .padding(10)
+                            .background(Color(white: 0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
                     }
                     .padding(14)
                     .background(Color(white: 0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                if editingPlan {
+                    HStack(spacing: 10) {
+                        TextField("Add a task…", text: $eveningNewItem)
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .padding(14)
+                            .background(Color(white: 0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .onSubmit(addEveningItem)
+                        Button(action: addEveningItem) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(.black)
+                                .frame(width: 50, height: 50)
+                                .background(accent)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .disabled(eveningNewItem.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -224,9 +285,15 @@ struct EntryView: View {
         .animation(.easeInOut(duration: 0.15), value: ready)
     }
 
-    // Every item needs either proof (done) or a reason (not done).
+    // Every item needs either proof (done) or a reason (not done). Must finish
+    // any plan edits first, and keep at least 3 tasks.
     private var eveningReady: Bool {
-        !items.isEmpty && items.allSatisfy { !$0.note.trimmingCharacters(in: .whitespaces).isEmpty }
+        !editingPlan
+            && items.count >= 3
+            && items.allSatisfy {
+                !$0.title.trimmingCharacters(in: .whitespaces).isEmpty
+                    && !$0.note.trimmingCharacters(in: .whitespaces).isEmpty
+            }
     }
 
     private func addItem() {
@@ -234,5 +301,12 @@ struct EntryView: View {
         guard !trimmed.isEmpty else { return }
         items.append(ChecklistItem(title: trimmed))
         newItem = ""
+    }
+
+    private func addEveningItem() {
+        let trimmed = eveningNewItem.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        items.append(ChecklistItem(title: trimmed))
+        eveningNewItem = ""
     }
 }

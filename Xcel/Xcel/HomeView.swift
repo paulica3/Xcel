@@ -3,6 +3,7 @@ import UIKit
 
 struct HomeView: View {
     let series: Series?
+    let stats: CareerStats
     @Environment(AppSettings.self) private var settings
     @Environment(\.openURL) private var openURL
 
@@ -12,6 +13,12 @@ struct HomeView: View {
 
     private var accent: Color { settings.accent.color }
     private var todayGame: Game? { series?.games.first { $0.isToday } }
+
+    // True elimination: lose tonight and the series is over.
+    private var eliminationActive: Bool {
+        guard let series, series.seriesResult == .inProgress else { return false }
+        return series.userFacingElimination
+    }
 
     var body: some View {
         ZStack {
@@ -23,6 +30,10 @@ struct HomeView: View {
                 welcome
                 Spacer()
                 seriesButton
+                if stats.hasHistory {
+                    statsStrip
+                        .padding(.top, 18)
+                }
                 Spacer()
                 bottomBar
             }
@@ -92,13 +103,14 @@ struct HomeView: View {
             } label: {
                 VStack(spacing: 10) {
                     Text(statusHeadline(series))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundStyle(eliminationActive ? Color.eliminationRed : accent)
                         .kerning(1.5)
+                        .multilineTextAlignment(.center)
 
                     HStack(spacing: 16) {
                         Text("\(series.wins)")
-                            .foregroundStyle(accent)
+                            .foregroundStyle(eliminationActive ? Color.eliminationRed : accent)
                         Text("–")
                             .foregroundStyle(Color(white: 0.25))
                         Text("\(series.losses)")
@@ -115,12 +127,63 @@ struct HomeView: View {
                 .padding(.vertical, 28)
                 .background(Color(white: 0.07))
                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(accent.opacity(0.25), lineWidth: 1)
-                )
+                .overlay(seriesBorder)
             }
         }
+    }
+
+    @ViewBuilder
+    private var seriesBorder: some View {
+        if eliminationActive {
+            // Pulsing red ring — the stakes follow you to the landing page.
+            TimelineView(.animation) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let pulse = 0.35 + 0.45 * (0.5 + 0.5 * sin(t * 3.0))
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.eliminationRed.opacity(pulse), lineWidth: 2)
+                    .shadow(color: Color.eliminationRed.opacity(pulse * 0.6), radius: 10)
+            }
+        } else {
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(accent.opacity(0.25), lineWidth: 1)
+        }
+    }
+
+    // MARK: Season identity — record, streak, best comeback
+
+    private var statsStrip: some View {
+        HStack(spacing: 12) {
+            statTile(value: "\(stats.wins)–\(stats.losses)", label: "RECORD", hot: false)
+            statTile(
+                value: stats.currentStreak > 0 ? "\(stats.currentStreak)🔥" : "—",
+                label: "STREAK",
+                hot: stats.currentStreak >= 3
+            )
+            statTile(
+                value: stats.bestComebackDeficit > 0 ? "−\(stats.bestComebackDeficit)" : "—",
+                label: "BEST COMEBACK",
+                hot: false
+            )
+        }
+    }
+
+    private func statTile(value: String, label: String, hot: Bool) -> some View {
+        VStack(spacing: 5) {
+            Text(value)
+                .font(.system(size: 22, weight: .black))
+                .foregroundStyle(hot ? accent : .white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .kerning(1)
+                .foregroundStyle(Color(white: 0.4))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(Color(white: 0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: Bottom — feedback
@@ -158,7 +221,7 @@ struct HomeView: View {
         case .won:  return "SERIES WON"
         case .lost: return "SERIES LOST"
         case .inProgress:
-            if series.userFacingElimination { return "WIN OR GO HOME" }
+            if series.userFacingElimination { return "ELIMINATION GAME TONIGHT" }
             if let game = todayGame, game.verdict == .pending {
                 return "GAME \(game.gameNumber) TONIGHT"
             }

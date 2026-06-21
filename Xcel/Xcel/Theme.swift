@@ -4,6 +4,7 @@ import SwiftUI
 extension Color {
     static let arenaBlack = Color(white: 0.04)
     static let neonGreen = AccentTheme.green.color
+    static let eliminationRed = Color(red: 1.0, green: 0.23, blue: 0.19)
 }
 
 enum AccentTheme: String, CaseIterable, Identifiable {

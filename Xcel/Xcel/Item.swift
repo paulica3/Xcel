@@ -19,6 +19,15 @@ final class Series {
     var losses: Int { games.filter { $0.verdict == .loss }.count }
     var judgedCount: Int { games.filter { $0.verdict != .pending }.count }
 
+    // Games the user can still play: today + future days this week that are
+    // unjudged. Excludes days before the user started (they're void, not losses).
+    var gamesRemaining: Int {
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        return games.filter {
+            $0.verdict == .pending && Calendar.current.startOfDay(for: $0.date) >= todayStart
+        }.count
+    }
+
     var seriesResult: SeriesResult {
         if wins >= 4 { return .won }
         if losses >= 4 { return .lost }
@@ -109,4 +118,54 @@ final class Game {
 
 enum GameVerdict: String, Codable {
     case pending, win, loss
+}
+
+// All-time identity shown on the Home page: record, current win streak, and
+// the biggest series comeback ever pulled off.
+struct CareerStats {
+    var wins: Int
+    var losses: Int
+    var currentStreak: Int        // consecutive game wins ending at the latest judged game
+    var bestComebackDeficit: Int  // largest game deficit erased in a won series (0 = none)
+
+    var hasHistory: Bool { wins + losses > 0 }
+
+    static func compute(from allSeries: [Series]) -> CareerStats {
+        var wins = 0, losses = 0
+        var judged: [Game] = []
+
+        for series in allSeries {
+            for game in series.games {
+                switch game.verdict {
+                case .win: wins += 1; judged.append(game)
+                case .loss: losses += 1; judged.append(game)
+                case .pending: break
+                }
+            }
+        }
+
+        // Current streak: walk backwards through judged games by date.
+        var streak = 0
+        for game in judged.sorted(by: { $0.date > $1.date }) {
+            if game.verdict == .win { streak += 1 } else { break }
+        }
+
+        // Best comeback: deepest hole climbed out of in any series the user won.
+        var bestDeficit = 0
+        for series in allSeries where series.seriesResult == .won {
+            var w = 0, l = 0, maxDeficit = 0
+            for game in series.games.sorted(by: { $0.gameNumber < $1.gameNumber }) {
+                switch game.verdict {
+                case .win: w += 1
+                case .loss: l += 1
+                case .pending: break
+                }
+                maxDeficit = max(maxDeficit, l - w)
+            }
+            bestDeficit = max(bestDeficit, maxDeficit)
+        }
+
+        return CareerStats(wins: wins, losses: losses,
+                           currentStreak: streak, bestComebackDeficit: bestDeficit)
+    }
 }
