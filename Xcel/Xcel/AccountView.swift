@@ -6,6 +6,7 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var photoItem: PhotosPickerItem?
+    @State private var showInsights = false
 
     private var accent: Color { settings.accent.color }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
@@ -21,6 +22,8 @@ struct AccountView: View {
                     header
 
                     profilePhoto
+
+                    insightsRow
 
                     section("YOUR NAME") {
                         TextField("Name", text: $settings.userName)
@@ -76,6 +79,36 @@ struct AccountView: View {
                 }
                 .padding(24)
             }
+        }
+        .sheet(isPresented: $showInsights) { InsightsView() }
+    }
+
+    private var insightsRow: some View {
+        Button { showInsights = true } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 38, height: 38)
+                    .background(accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Season insights")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Monthly verdict · where you're struggling")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.35))
+            }
+            .padding(14)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.25), lineWidth: 1))
         }
     }
 

@@ -114,6 +114,14 @@ final class Game {
 
     var morningCompleted: Bool { !checklist.isEmpty }
 
+    // The game plan can only be edited until noon on the game's day. After that
+    // it's locked in — you can still log results at night, but no more changes.
+    var editsLocked: Bool {
+        let cal = Calendar.current
+        guard let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) else { return true }
+        return Date() >= noon
+    }
+
     // Past, unjudged, and the user had a chance to play it (series already existed).
     func isMissed(seriesCreatedAt: Date) -> Bool {
         guard verdict == .pending else { return false }

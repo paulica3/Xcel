@@ -19,6 +19,7 @@ struct ContentView: View {
             ensureCurrentSeries()
             processMissedGames()
             settings.setUpNotifications()
+            refreshCheckups()
         }
         .fullScreenCover(isPresented: .constant(!settings.hasOnboarded)) {
             OnboardingView()
@@ -44,6 +45,16 @@ struct ContentView: View {
             modelContext.insert(game)
         }
         try? modelContext.save()
+    }
+
+    // Top up the dated 4pm check-up notifications with the current series score.
+    private func refreshCheckups() {
+        let series = currentSeries
+        NotificationManager.scheduleCheckups(
+            enabled: settings.notificationsEnabled,
+            wins: series?.wins ?? 0,
+            losses: series?.losses ?? 0
+        )
     }
 
     private func processMissedGames() {

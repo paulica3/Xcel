@@ -139,14 +139,24 @@ struct EntryView: View {
                 .kerning(2)
                 .foregroundStyle(Color(white: 0.35))
             Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { editingPlan.toggle() }
-            } label: {
-                Text(editingPlan ? "Done" : "Edit plan")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(accent)
+            if game.editsLocked {
+                // Plan froze at noon — review only from here.
+                HStack(spacing: 5) {
+                    Image(systemName: "lock.fill")
+                    Text("Locked at noon")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color(white: 0.4))
+            } else {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { editingPlan.toggle() }
+                } label: {
+                    Text(editingPlan ? "Done" : "Edit plan")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(accent)
+                }
+                .disabled(editingPlan && items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }.count < 3)
             }
-            .disabled(editingPlan && items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }.count < 3)
         }
         .padding(.bottom, 2)
     }
