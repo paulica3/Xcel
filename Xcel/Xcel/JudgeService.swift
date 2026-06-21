@@ -5,6 +5,22 @@ struct JudgeResult {
     let verdict: GameVerdict
     let oneLiner: String
     let feedback: String
+    // Box score, each 0-10. Defaults to zeros (= not scored) for safety.
+    var effort: Int = 0
+    var discipline: Int = 0
+    var mood: Int = 0
+    var productivity: Int = 0
+}
+
+struct BoxScore {
+    let effort: Int
+    let discipline: Int
+    let mood: Int
+    let productivity: Int
+
+    static let dimensions = ["Effort", "Discipline", "Mood", "Productivity"]
+    var values: [Int] { [effort, discipline, mood, productivity] }
+    var average: Double { Double(effort + discipline + mood + productivity) / 4.0 }
 }
 
 // How hard the judge leans, based on the current series state.
@@ -90,8 +106,15 @@ private struct AppleIntelligenceJudge {
     - Judge fairly on reasons for incomplete tasks. GENUINE hardship (illness, hospital, family emergency, injury) is NOT the user's fault — do not be harsh; a day derailed by real hardship can still be a W if they handled it with integrity. Flimsy excuses ("didn't feel like it", "too tired") earn an L.
     - Never frame a loss as a standalone life judgment.
 
+    Also rate the day 0-10 on four dimensions (the "box score"):
+    - effort: how hard they actually worked / showed up
+    - discipline: sticking to the plan and resisting excuses
+    - mood: emotional state / attitude as reflected in their entry
+    - productivity: how much of real value got done
+    Be honest with these numbers — a Loss should have low scores, a strong Win high ones; nonsense proof scores near 0.
+
     Respond ONLY with valid JSON, nothing else:
-    {"verdict":"win","oneLiner":"...","feedback":"..."}
+    {"verdict":"win","oneLiner":"...","feedback":"...","effort":7,"discipline":6,"mood":8,"productivity":7}
     """
 
     func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance) async throws -> JudgeResult {
@@ -120,13 +143,25 @@ private struct AppleIntelligenceJudge {
     private func parse(_ raw: String) throws -> JudgeResult {
         let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = cleaned.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
-              let verdictStr = json["verdict"],
-              let oneLiner = json["oneLiner"] else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let verdictStr = json["verdict"] as? String,
+              let oneLiner = json["oneLiner"] as? String else {
             throw JudgeError.parseFailure(raw)
         }
         let verdict: GameVerdict = verdictStr.lowercased() == "win" ? .win : .loss
-        return JudgeResult(verdict: verdict, oneLiner: oneLiner, feedback: json["feedback"] ?? "")
+        func score(_ key: String) -> Int {
+            let v = (json[key] as? Int) ?? Int((json[key] as? Double) ?? 0)
+            return min(10, max(0, v))
+        }
+        return JudgeResult(
+            verdict: verdict,
+            oneLiner: oneLiner,
+            feedback: (json["feedback"] as? String) ?? "",
+            effort: score("effort"),
+            discipline: score("discipline"),
+            mood: score("mood"),
+            productivity: score("productivity")
+        )
     }
 }
 
@@ -156,7 +191,8 @@ private struct MockJudge {
             return JudgeResult(
                 verdict: .loss,
                 oneLiner: "Checked the boxes, but the proof was smoke. The judge isn't buying it — L.",
-                feedback: "The proof on \(names) doesn't describe how you actually did anything. A checkmark with no real receipt counts for nothing. Tomorrow: write one concrete sentence of evidence per task — what you did, when, and how."
+                feedback: "The proof on \(names) doesn't describe how you actually did anything. A checkmark with no real receipt counts for nothing. Tomorrow: write one concrete sentence of evidence per task — what you did, when, and how.",
+                effort: 2, discipline: 1, mood: 3, productivity: 1
             )
         }
 
@@ -199,7 +235,20 @@ private struct MockJudge {
             oneLiner = "\(credited) of \(total) held up. Not enough — L."
             feedback = "The plan was there; the credible follow-through wasn't. Pick the one task that mattered most and protect it tomorrow — win the small battle first, with proof you'd stand behind."
         }
-        return JudgeResult(verdict: verdict, oneLiner: oneLiner, feedback: feedback)
+
+        // Heuristic box score derived from completion + integrity of the proof.
+        let checkedCount = checklist.filter { $0.isDone }.count
+        func clamp(_ x: Int) -> Int { min(10, max(0, x)) }
+        let base = Int((ratio * 10).rounded())
+        let effort = clamp(Int((Double(checkedCount) / Double(total) * 10).rounded()) + (hasExtra ? 1 : 0))
+        let discipline = clamp(base + (fakeProof.isEmpty ? 1 : -3))
+        let productivity = clamp(Int((Double(credited) / Double(total) * 10).rounded()))
+        let mood = clamp(verdict == .win ? (hadHardship ? 6 : 8) : 4)
+
+        return JudgeResult(
+            verdict: verdict, oneLiner: oneLiner, feedback: feedback,
+            effort: effort, discipline: discipline, mood: mood, productivity: productivity
+        )
     }
 }
 

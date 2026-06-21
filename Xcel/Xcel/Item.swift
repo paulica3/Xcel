@@ -10,7 +10,21 @@ final class Series {
     // is impossible, so it's reps-only — judged for practice, not counted as a
     // real series. The first real best-of-7 starts the following Monday.
     var isWarmup: Bool = false
+    // End-of-week broadcast recap, generated once when the series finishes.
+    var recapHeadline: String = ""
+    var recapBody: String = ""
     @Relationship(deleteRule: .cascade, inverse: \Game.series) var games: [Game]
+
+    var hasRecap: Bool { !recapBody.isEmpty }
+
+    // A real (non-warm-up) series is recap-ready once it's clinched, or once
+    // its week is fully in the past.
+    var recapEligible: Bool {
+        guard !isWarmup else { return false }
+        if seriesResult != .inProgress { return true }
+        let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        return Date() >= weekEnd && judgedCount > 0
+    }
 
     init(weekStart: Date, isWarmup: Bool = false) {
         self.id = UUID()
@@ -97,6 +111,12 @@ final class Game {
     var verdict: GameVerdict
     var verdictOneLiner: String
     var verdictFeedback: String
+    // Box score — the day rated 0-10 across four dimensions (premium breakdown).
+    // 0 across the board means "not scored".
+    var scoreEffort: Int = 0
+    var scoreDiscipline: Int = 0
+    var scoreMood: Int = 0
+    var scoreProductivity: Int = 0
     var series: Series?
 
     init(date: Date, gameNumber: Int) {
@@ -108,6 +128,10 @@ final class Game {
         self.verdict = .pending
         self.verdictOneLiner = ""
         self.verdictFeedback = ""
+    }
+
+    var hasBoxScore: Bool {
+        scoreEffort + scoreDiscipline + scoreMood + scoreProductivity > 0
     }
 
     var isToday: Bool { Calendar.current.isDateInToday(date) }

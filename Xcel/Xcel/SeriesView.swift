@@ -22,6 +22,11 @@ struct SeriesView: View {
                     VStack(spacing: 0) {
                         scoreboard
                             .padding(.top, 32)
+                        if series.recapEligible {
+                            SeriesRecapCard(series: series, accent: accent)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 28)
+                        }
                         weekLog
                             .padding(.top, 36)
                     }

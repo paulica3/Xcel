@@ -34,6 +34,12 @@ struct GameResultView: View {
 
                     verdictBlock
 
+                    if game.hasBoxScore {
+                        BoxScoreView(effort: game.scoreEffort, discipline: game.scoreDiscipline,
+                                     mood: game.scoreMood, productivity: game.scoreProductivity,
+                                     accent: accent)
+                    }
+
                     if !game.checklist.isEmpty {
                         VStack(spacing: 10) {
                             ForEach(game.checklist) { item in
@@ -135,7 +141,6 @@ struct SeriesDetailView: View {
     let series: Series
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
-
     private var accent: Color { settings.accent.color }
 
     private var weekLabel: String {
@@ -168,6 +173,8 @@ struct SeriesDetailView: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(series.seriesResult == .won ? accent : Color(white: 0.45))
                     }
+
+                    SeriesRecapCard(series: series, accent: accent)
 
                     VStack(spacing: 10) {
                         ForEach(series.games.sorted { $0.gameNumber < $1.gameNumber }) { game in

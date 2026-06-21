@@ -199,17 +199,20 @@ struct EntryView: View {
                                 }
                             }
 
-                            TextField(
-                                item.isDone ? "How'd you do it? (proof)" : "What happened? (reason)",
-                                text: $item.note,
-                                axis: .vertical
-                            )
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color(white: 0.7))
-                            .lineLimit(1...3)
-                            .padding(10)
-                            .background(Color(white: 0.06))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            HStack(alignment: .bottom, spacing: 8) {
+                                TextField(
+                                    item.isDone ? "How'd you do it? (proof)" : "What happened? (reason)",
+                                    text: $item.note,
+                                    axis: .vertical
+                                )
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color(white: 0.7))
+                                .lineLimit(1...3)
+                                .padding(10)
+                                .background(Color(white: 0.06))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                MicButton(text: $item.note, accent: accent)
+                            }
                         }
                     }
                     .padding(14)
@@ -243,17 +246,20 @@ struct EntryView: View {
                         .font(.system(size: 10, weight: .bold))
                         .kerning(2)
                         .foregroundStyle(accent)
-                    TextField(
-                        "Did more than you planned? Tell the judge. (optional)",
-                        text: $extraNotes,
-                        axis: .vertical
-                    )
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color(white: 0.7))
-                    .lineLimit(1...4)
-                    .padding(10)
-                    .background(Color(white: 0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    HStack(alignment: .bottom, spacing: 8) {
+                        TextField(
+                            "Did more than you planned? Tell the judge. (optional)",
+                            text: $extraNotes,
+                            axis: .vertical
+                        )
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(white: 0.7))
+                        .lineLimit(1...4)
+                        .padding(10)
+                        .background(Color(white: 0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        MicButton(text: $extraNotes, accent: accent)
+                    }
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)

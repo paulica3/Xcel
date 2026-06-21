@@ -156,6 +156,12 @@ struct SubmitView: View {
                     .padding(.horizontal, 28)
                 }
 
+                if r.effort + r.discipline + r.mood + r.productivity > 0 {
+                    BoxScoreView(effort: r.effort, discipline: r.discipline,
+                                 mood: r.mood, productivity: r.productivity, accent: accent)
+                        .padding(.horizontal, 28)
+                }
+
                 if let series = game.series {
                     Text("\(series.wins)–\(series.losses) in the series")
                         .font(.system(size: 14))
@@ -220,6 +226,10 @@ struct SubmitView: View {
                     game.verdict = judgeResult.verdict
                     game.verdictOneLiner = judgeResult.oneLiner
                     game.verdictFeedback = judgeResult.feedback
+                    game.scoreEffort = judgeResult.effort
+                    game.scoreDiscipline = judgeResult.discipline
+                    game.scoreMood = judgeResult.mood
+                    game.scoreProductivity = judgeResult.productivity
                     try? modelContext.save()
                     result = judgeResult
 
