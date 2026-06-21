@@ -7,6 +7,7 @@ struct SubmitView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
+    @Query(sort: \Series.weekStart, order: .reverse) private var allSeries: [Series]
     @State private var phase: Phase = .ready
     @State private var result: JudgeResult? = nil
     @State private var errorMessage: String? = nil
@@ -16,6 +17,12 @@ struct SubmitView: View {
     @State private var celebrationSubtitle = ""
 
     private var accent: Color { settings.accent.color }
+
+    // The judge's long-term read of the player, built fresh from history. The
+    // current week is excluded so today's in-progress series doesn't skew it.
+    private var seasonMemory: SeasonMemory {
+        SeasonMemory.build(from: allSeries, excluding: game.series?.id)
+    }
 
     enum Phase { case ready, judging, revealing, verdict }
 
@@ -88,6 +95,18 @@ struct SubmitView: View {
                 }
             }
             Spacer()
+            if let nudge = seasonMemory.nudge {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 12))
+                    Text(nudge)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(accent.opacity(0.75))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 4)
+            }
             if let note = JudgeService.practiceJudgeNote {
                 Text(note)
                     .font(.system(size: 12))
@@ -207,9 +226,18 @@ struct SubmitView: View {
         guard let series = game.series, result?.verdict == .win else { return }
 
         if series.seriesResult == .won {
+            // A series win that completes a 4-series run raises a banner - the
+            // biggest moment in the app, so it trumps the usual series celebration.
+            let ring = Postseason.ringClinched(by: series, in: allSeries)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
                 FX.comeback()
-                if series.wasComeback {
+                if ring {
+                    let rings = Postseason.compute(from: allSeries).rings
+                    celebrationTitle = "CHAMPIONS"
+                    celebrationSubtitle = rings <= 1
+                        ? "Four series. One ring. You're a champion."
+                        : "Banner number \(rings). Build the dynasty."
+                } else if series.wasComeback {
                     celebrationTitle = "COMEBACK"
                     celebrationSubtitle = "Down and out - and you took the series anyway."
                 } else {
@@ -228,6 +256,8 @@ struct SubmitView: View {
         phase = .judging
         let wins = game.series?.wins ?? 0
         let losses = game.series?.losses ?? 0
+        // Snapshot the memory briefing on the main actor before the async hop.
+        let memoryBriefing = seasonMemory.briefing
 
         Task {
             do {
@@ -237,7 +267,8 @@ struct SubmitView: View {
                     wins: wins,
                     losses: losses,
                     gameNumber: game.gameNumber,
-                    guide: settings.guide
+                    guide: settings.guide,
+                    memory: memoryBriefing
                 )
                 await MainActor.run {
                     game.verdict = judgeResult.verdict

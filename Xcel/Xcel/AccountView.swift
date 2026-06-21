@@ -9,6 +9,8 @@ struct AccountView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showInsights = false
     @State private var showTrophies = false
+    @State private var showPostseason = false
+    @State private var showPowerUps = false
 
     private var accent: Color { settings.accent.color }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
@@ -26,6 +28,8 @@ struct AccountView: View {
                     profilePhoto
 
                     insightsRow
+                    postseasonRow
+                    powerUpsRow
                     trophyRow
 
                     section("YOUR NAME") {
@@ -124,6 +128,48 @@ struct AccountView: View {
         }
         .sheet(isPresented: $showInsights) { InsightsView() }
         .sheet(isPresented: $showTrophies) { TrophyCaseView() }
+        .sheet(isPresented: $showPostseason) { RoadToFinalsView() }
+        .sheet(isPresented: $showPowerUps) { PowerUpsView() }
+    }
+
+    private var postseasonRow: some View {
+        navRow(icon: "trophy.circle.fill", title: "Road to the Finals",
+               subtitle: "Your playoff run · rings & banners") { showPostseason = true }
+    }
+
+    private var powerUpsRow: some View {
+        navRow(icon: "bolt.circle.fill", title: "Locker room",
+               subtitle: "Spend Momentum on power-ups") { showPowerUps = true }
+    }
+
+    // Shared styling for the tappable destination rows.
+    private func navRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 38, height: 38)
+                    .background(accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.35))
+            }
+            .padding(14)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.25), lineWidth: 1))
+        }
     }
 
     private var trophyRow: some View {
@@ -280,10 +326,13 @@ struct AccountView: View {
                     Text(g.name)
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Text(g.blurb)
                         .font(.system(size: 12))
                         .foregroundStyle(Color(white: 0.45))
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")

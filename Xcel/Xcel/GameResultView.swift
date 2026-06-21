@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 // Read-only recap of a single game: verdict, one-liner, checklist, coach's notes.
 struct GameResultView: View {
@@ -159,6 +160,24 @@ struct GameResultView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Color(white: 0.5))
                     .padding(.leading, 28)
+            }
+            if let data = item.photoData, let ui = UIImage(data: data) {
+                HStack(spacing: 10) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    HStack(spacing: 4) {
+                        Image(systemName: item.photoVerified ? "checkmark.seal.fill" : "photo")
+                            .font(.system(size: 11))
+                        Text(item.photoVerified ? "Photo verified" : "Photo attached")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(item.photoVerified ? accent : Color(white: 0.5))
+                    Spacer()
+                }
+                .padding(.leading, 28)
             }
         }
         .padding(14)

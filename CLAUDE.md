@@ -78,13 +78,17 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Box Score Breakdown - day scored 0-10 on Effort / Discipline / Mood / Productivity (`BoxScoreView`, scores on `Game` + `JudgeResult`)
 - ✅ Season box-score stats - average stat line (one decimal), per-dimension form sparklines, and a "vs prior 30 days" win-rate/box comparison on `InsightsView` (`BoxScoreAverages` / `BoxScoreTrend` / `SeasonComparison`, `AverageBoxScoreView` / `BoxTrendView`)
 - ✅ Game ball - user taps one morning task as the day's priority (`ChecklistItem.isGameBall`); the judge weights it heaviest (can carry a borderline day or sink it)
-- ✅ Guide voices - user picks 1 of 3 guides (`Guide`: The Ant / The Joker / The King) in Account; injected into the judge's instructions as tone only, never changing how strictly it scores. Characters *inspired by* the nicknames of three all-time greats. Optional comic-portrait assets (`guide_ant`/`guide_joker`/`guide_king` in Assets.xcassets) show in the picker when present, with an SF Symbol fallback. NOTE: "The Joker" is a registered Warner/DC trademark - revisit before any public App Store release.
+- ✅ Guide voices - user picks 1 of 3 guides (`Guide`: The Ant / The Maestro / The King) in Account; injected into the judge's instructions as tone only, never changing how strictly it scores. Characters *inspired by* the nicknames/personas of three all-time greats, with original non-trademark names. Optional comic-portrait assets (`guide_ant`/`guide_maestro`/`guide_king` in Assets.xcassets) show in the picker when present, with an SF Symbol fallback. (Renamed from "The Joker" to "The Maestro" to avoid the Warner/DC trademark.)
 - ✅ Voice-to-text evening entry (Apple Speech, on-device; `Dictation.swift` / `MicButton`)
 - ✅ End-of-week AI series recap, broadcast style (`RecapService` / `SeriesRecapCard`)
 - ✅ Intention coaching - AI tightens vague morning tasks before lock-in (`CoachService` / `CoachingSheet`)
 - ✅ Share cards - branded W/L / verdict image to IG Stories, share sheet (WhatsApp/Telegram/Messages/…); `Share.swift`
 - ✅ Trophy case - all-time achievement badges (`TrophyCaseView`)
 - ✅ High-stakes elimination/comeback notifications, separately toggleable
+- ✅ AI GM memory - the judge gets a longitudinal briefing (career record, current streak, weakest weekday, most-dropped recurring task) built from history and injected into the daily verdict as personalization (never changes scoring). Subtle "GM's read" nudge before submit. (`SeasonMemory`, wired through `JudgeService.judge(... memory:)` + `SubmitView`.)
+- ✅ Road to the Finals / Rings / Dynasty - solo season arc: 4 series wins = 1 ring (Round 1 -> Conf. Semifinals -> Conf. Finals -> The Finals); rings stack into Champion/Back-to-Back/Three-peat/Dynasty. Read-only framing over series history, never alters the weekly loop. Ladder view, Home banner, trophies, ring-clinch ceremony. (`Postseason` / `RoadToFinalsView`.)
+- ✅ Power-ups / Locker Room - "Momentum" currency earned from wins (derived from data, can't be faked) minus spent (persisted). Two power-ups: Timeout (excuse a past L) and Buzzer Beater (re-open a past L to replay). (`PowerUpStore` / `PowerUp` / `PowerUpsView`.)
+- ✅ Photo proof - attach a Photos image to a done task; on-device EXIF same-day check + Vision label match (no network, no entitlement beyond the picker). Verified, same-day proof is trusted more by the judge. Thumbnail + verification state stored on `ChecklistItem`. (`PhotoProof` / `PhotoProofRow`.)
 - **Intention checklist + photo proof** (planned): AI turns the morning intention into a checklist; user checks off items and attaches a Photos-library image. App reads the photo's EXIF date to confirm it's same-day, and uses on-device Vision/AI to check the image matches the intention. Needs PhotoKit + Vision + EXIF - substantial; design as its own phase.
 
 ### Blocked on Apple Developer Program (own phase)
@@ -92,8 +96,9 @@ These need paid-program capabilities/entitlements (and, for widgets, a new embed
 - **HealthKit / screen-time auto-verification** - confirm tasks (workout, sleep, screen time) from HealthKit instead of pure self-report. Needs the HealthKit entitlement + usage strings + provisioning.
 - **Widgets + Live Activity** - today's scoreline on Home screen / Dynamic Island ("Game 6 tonight"). Needs a WidgetKit app-extension target + App Group entitlement (shared SwiftData/UserDefaults) + ActivityKit.
 
-### League candidates
-- Conferences with friends
+### League candidates (need accounts + backend - see "Accounts & Sync")
+- **Leagues / Conferences with friends** - friends form a conference, everyone runs their own weekly series, a shared standings board shows each member's W-L for the week. This is the primary viral/growth loop and the main reason we need real accounts.
+- **Head-to-head rivalry weeks** - pair two members for the week ("you vs. Marcus, both 3-2, Game 7 tonight"). Social accountability is the single biggest retention driver.
 - Shared leaderboard / rivalry tracking
 
 ### Cosmetics (one-time IAP)
@@ -102,6 +107,43 @@ These need paid-program capabilities/entitlements (and, for widgets, a new embed
 - Alternate broadcast skins (ESPN vs TNT vs NBA TV aesthetic)
 
 > ✅ = already built and in the testing deployment. Unchecked = not built yet.
+
+---
+
+## Roadmap - "Game-changing" bets (post-test-build)
+
+These are the big swings we want after the testing build validates the core loop. They are intentionally ambitious. Most depend on **Accounts & Sync** (below) and/or the paid Apple Developer Program. Priority order is roughly top-to-bottom.
+
+- **Leagues / Conferences with friends** - see "League candidates" above. The growth engine. Depends on accounts + backend.
+- **The Finals / Playoff bracket** - after N regular-season weeks, top performers in a league enter a single-elimination bracket. Gives the whole app a *season arc* with a real ending instead of an endless treadmill. Big emotional payoff and a natural premium hook. Depends on leagues.
+- **Trade deadline / Power-ups** - earn currency from wins; spend on a "timeout" (one excused make-up day) or a "buzzer beater" (re-judge one borderline L per series). Light game economy so wins accrue to something. (Injured Reserve is the seed of this.)
+- **AI season-long GM with memory** - the judge currently scores per-day. Give it longitudinal memory so the *daily* verdict can reference patterns ("third Monday in a row you skipped the gym - that's your weak side"). The `InsightsService` pattern engine already half-exists; wire its findings into the daily verdict to make the judge feel scary-smart.
+- **Photo / proof verification** - (also listed under premium candidates) EXIF same-day check + on-device Vision matching the photo to the stated intention. The credibility feature: turns self-report into *verified* report, which is what makes a competitive league fair. Needs PhotoKit + Vision + EXIF.
+- **Dynasty mode** - track consecutive series won across weeks; a franchise/dynasty meter, banner-raising ceremony on a 3-peat. Leans all the way into the NBA franchise fantasy.
+- **Widgets + Live Activity** - (blocked on Dev Program) tonight's scoreline on the Home screen / Dynamic Island ("Game 6 tonight - 3-2"). Major re-open driver. Needs a WidgetKit extension target + App Group + ActivityKit.
+- **Apple Watch companion** - quick "log the day" + a complication showing tonight's game. Watch presence meaningfully lifts daily-ritual compliance. Needs a watchOS target.
+- **HealthKit auto-verification** - (also listed under blocked-on-Dev-Program) a "workout" task auto-confirms from a logged Apple Watch workout. Removes friction *and* fights cheating. Needs the HealthKit entitlement.
+
+### Recommended priority stack
+1. **Accounts & Sync (Option B)** - the prerequisite for everything social.
+2. **Leagues + rivalry weeks** - the growth engine.
+3. **Season arc / Finals bracket + Dynasty mode** - retention + emotional payoff.
+4. **Widgets + Live Activity + Apple Watch** - once enrolled in the Dev Program.
+5. **Photo proof + HealthKit verification** - credibility layer that makes leagues fair.
+
+---
+
+## Accounts & Sync
+
+**Decision (locked):** cross-device data uses **real accounts + our own backend (Option B)**, NOT CloudKit private sync. Reason: the headline roadmap features (leagues, rivalry weeks, shared leaderboards, brackets) require users to see *each other's* data, which CloudKit's per-Apple-ID private database can't do. We go straight to the architecture the social features need rather than migrating twice.
+
+- **Auth:** Sign in with Apple as the primary (and initially only) provider. Apple requires it whenever any third-party login is offered, and it gives us a stable user ID with minimal PII. Email/Google can come later.
+- **Backend:** Supabase is the current pick (managed Postgres + auth + realtime + row-level security, generous free tier, SQL we control). Firebase is the fallback. Avoid rolling our own server.
+- **Local-first stays:** SwiftData remains the on-device source of truth so the app works offline and the daily ritual never blocks on network. The backend is a **sync layer on top**, not a replacement. Entries are judged on-device (Apple Intelligence) and then pushed; never gate journaling on connectivity.
+- **What syncs:** series, games, verdicts, box scores, settings (the user's own data) + league membership and other members' *summary* standings (W-L), not their raw journal text. Raw entries stay private to the author.
+- **Prerequisite:** paid Apple Developer Program (Sign in with Apple entitlement) + a privacy policy (we now collect/store user data off-device).
+
+> Implementation note: build this behind a `SyncService` protocol the same way the judge is abstracted, so the local-only build keeps working and the backend can be swapped/mocked. No view should talk to Supabase directly.
 
 ---
 

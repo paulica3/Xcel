@@ -25,8 +25,14 @@ struct InfoView: View {
                              "Morning: set your game plan (at least 3 tasks). Night: log how it went with proof. The Judge calls it a W or L.")
                         rule("basketball.fill", "The game ball",
                              "Tap the ○ next to your most important task to make it the game ball. The Judge leans hardest on it. Nail it and a close day tips your way.")
+                        rule("camera.fill", "Photo proof",
+                             "Marked a task done? Back it with a photo. Xcel checks the date and what's in it - all on your phone - and the Judge trusts verified, same-day proof the most.")
                         rule("trophy.fill", "Winning the series",
                              "First to 4 wins takes it. Clinch the series and you've moved on.")
+                        rule("trophy.circle.fill", "Road to the Finals",
+                             "Win four series to raise a banner and earn a ring. Stack rings to build a dynasty - find it under your profile.")
+                        rule("bolt.circle.fill", "Momentum & power-ups",
+                             "Win to bank Momentum, then spend it in the Locker Room: a Timeout excuses a past L, a Buzzer Beater re-opens one to replay.")
                         rule("flame.fill", "Comebacks",
                              "Down 1-3? Not dead. Win out and steal it 4-3 - the sweetest comeback in the game.")
                         rule("exclamationmark.triangle.fill", "Elimination",
@@ -37,6 +43,8 @@ struct InfoView: View {
                              "Skip a day and it's an automatic L. No-shows don't get a pass.")
                         rule("building.columns.fill", "The Judge",
                              "Tough but fair. Rewards honesty and real effort - sees right through vague proof and excuses.")
+                        rule("brain.head.profile", "The GM remembers",
+                             "The Judge knows your history - your streak, your weak weekday, the task you keep dropping - and calls it like a GM who's watched every game.")
                         rule("person.wave.2.fill", "Your guide",
                              "Pick your guide's voice in your profile. It changes how the Judge talks to you, never how strictly you're scored.")
                         rule("figure.run", "Warm-up week",

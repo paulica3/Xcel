@@ -25,6 +25,7 @@ struct TrophyCaseView: View {
         let comebacks = real.filter { $0.wasComeback }.count
         let sweeps = real.filter { $0.seriesResult == .won && $0.wins == 4 && $0.losses == 0 }.count
         let totalGames = stats.wins + stats.losses
+        let rings = Postseason.compute(from: allSeries).rings
 
         // Best win streak ever across all judged, non-excused games.
         let judged = real.flatMap { $0.games }
@@ -43,7 +44,9 @@ struct TrophyCaseView: View {
             Trophy(icon: "bolt.fill", title: "Hot Hand", detail: "3 wins in a row", unlocked: best >= 3),
             Trophy(icon: "crown.fill", title: "Unstoppable", detail: "10 wins in a row", unlocked: best >= 10),
             Trophy(icon: "shield.lefthalf.filled", title: "Veteran", detail: "Play 25 games", unlocked: totalGames >= 25),
-            Trophy(icon: "star.circle.fill", title: "Champion", detail: "Win 5 series", unlocked: seriesWon >= 5),
+            Trophy(icon: "star.circle.fill", title: "All-Star", detail: "Win 5 series", unlocked: seriesWon >= 5),
+            Trophy(icon: "trophy.fill", title: "Ring", detail: "Win 4 series for a title", unlocked: rings >= 1),
+            Trophy(icon: "crown.fill", title: "Dynasty", detail: "Win 3 championships", unlocked: rings >= 3),
         ]
     }
 

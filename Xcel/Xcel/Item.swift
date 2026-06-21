@@ -101,6 +101,11 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
     var note: String   // proof of how it was done, or the reason it wasn't
     // The one task that matters most today - the judge weights it heavier.
     var isGameBall: Bool
+    // Optional photo proof: a downscaled JPEG thumbnail plus the on-device
+    // verification result (same-day EXIF check + Vision label match).
+    var photoData: Data?
+    var photoVerified: Bool
+    var photoNote: String
 
     init(title: String) {
         self.id = UUID()
@@ -108,9 +113,12 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
         self.isDone = false
         self.note = ""
         self.isGameBall = false
+        self.photoData = nil
+        self.photoVerified = false
+        self.photoNote = ""
     }
 
-    // Custom decode so checklists saved before the game-ball flag existed still load.
+    // Custom decode so checklists saved before newer fields existed still load.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(UUID.self, forKey: .id)
@@ -118,6 +126,9 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
         self.isDone = try c.decode(Bool.self, forKey: .isDone)
         self.note = try c.decode(String.self, forKey: .note)
         self.isGameBall = try c.decodeIfPresent(Bool.self, forKey: .isGameBall) ?? false
+        self.photoData = try c.decodeIfPresent(Data.self, forKey: .photoData)
+        self.photoVerified = try c.decodeIfPresent(Bool.self, forKey: .photoVerified) ?? false
+        self.photoNote = try c.decodeIfPresent(String.self, forKey: .photoNote) ?? ""
     }
 }
 

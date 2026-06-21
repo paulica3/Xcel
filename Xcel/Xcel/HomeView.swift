@@ -4,6 +4,7 @@ import UIKit
 struct HomeView: View {
     let series: Series?
     let stats: CareerStats
+    let postseason: Postseason
     @Environment(AppSettings.self) private var settings
     @Environment(\.openURL) private var openURL
 
@@ -33,6 +34,10 @@ struct HomeView: View {
                 if stats.hasHistory {
                     statsStrip
                         .padding(.top, 18)
+                }
+                if postseason.rings > 0, let title = postseason.dynastyTitle {
+                    championshipBanner(title)
+                        .padding(.top, 10)
                 }
                 Spacer()
                 bottomBar
@@ -165,6 +170,28 @@ struct HomeView: View {
                 hot: false
             )
         }
+    }
+
+    // Banner on the wall: shown once the user has won it all at least once.
+    private func championshipBanner(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "trophy.fill")
+                .font(.system(size: 13))
+            Text(title)
+                .font(.system(size: 12, weight: .black))
+                .kerning(1.5)
+            if postseason.rings > 1 {
+                Text("· \(postseason.rings) RINGS")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color(white: 0.5))
+            }
+        }
+        .foregroundStyle(accent)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(white: 0.07))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(accent.opacity(0.35), lineWidth: 1))
     }
 
     private func statTile(value: String, label: String, hot: Bool) -> some View {

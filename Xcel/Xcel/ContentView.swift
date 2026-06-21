@@ -13,7 +13,9 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            HomeView(series: currentSeries, stats: CareerStats.compute(from: allSeries))
+            HomeView(series: currentSeries,
+                     stats: CareerStats.compute(from: allSeries),
+                     postseason: Postseason.compute(from: allSeries))
         }
         .onAppear {
             ensureCurrentSeries()

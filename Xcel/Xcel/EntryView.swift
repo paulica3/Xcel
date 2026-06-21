@@ -277,6 +277,11 @@ struct EntryView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                                 MicButton(text: $item.note, accent: accent)
                             }
+
+                            // Photo proof is offered for tasks marked done.
+                            if item.isDone {
+                                PhotoProofRow(item: $item, accent: accent)
+                            }
                         }
                     }
                     .padding(14)
