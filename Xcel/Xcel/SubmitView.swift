@@ -7,6 +7,7 @@ struct SubmitView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \Series.weekStart, order: .reverse) private var allSeries: [Series]
     @State private var phase: Phase = .ready
     @State private var result: JudgeResult? = nil
@@ -61,6 +62,17 @@ struct SubmitView: View {
 
     private var readyView: some View {
         VStack(spacing: 0) {
+            // Last chance to back out before the verdict - pop back to the entry.
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(accent)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
             Spacer()
             VStack(spacing: 16) {
                 Text("GAME \(game.gameNumber)")
