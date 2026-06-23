@@ -68,7 +68,8 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Daily checklist journal entry (morning plan + evening proof)
 - ✅ AI Win/Loss verdict with a one-liner + coach's notes
 - ✅ Weekly series scoreline + basic series history
-- ✅ Two-touch ritual + 4 daily notifications (morning, 11:30 lock warning, 4pm score check-up, evening), noon edit lock
+- ✅ Two-touch ritual + 5 daily notifications (morning, 11:30 lock warning, 4pm score check-up, 6pm logging-open, evening), noon edit lock
+- ✅ Logging window - the evening result can only be submitted between 6:00 PM and 11:59 PM local (`Game.isLoggingOpen`, `Game.loggingOpenHour`); the entry can be pre-filled earlier but not graded. Gated in `EntryView` + reflected in the `SeriesView` CTA.
 - ✅ Injured Reserve - one excused loss per series (`Game.excused`, `Series.canUseInjuredReserve`)
 
 ### Premium candidates (built on `main` now, may become paid later)

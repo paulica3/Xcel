@@ -76,56 +76,9 @@ struct EntryView: View {
     // MARK: Morning - build the checklist
 
     private var morningBuilder: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 10) {
-                    ForEach($items) { $item in
-                        HStack {
-                            Button {
-                                toggleGameBall(item.id)
-                            } label: {
-                                Image(systemName: item.isGameBall ? "basketball.fill" : "circle")
-                                    .foregroundStyle(item.isGameBall ? accent : accent.opacity(0.55))
-                            }
-                            .buttonStyle(.plain)
-                            TextField("Task", text: $item.title)
-                                .font(.system(size: 16))
-                                .foregroundStyle(.white)
-                            Button {
-                                items.removeAll { $0.id == item.id }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(Color(white: 0.3))
-                            }
-                        }
-                        .padding(14)
-                        .background(Color(white: 0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                }
-                .padding(.horizontal, 24)
-            }
-
-            if !items.isEmpty {
-                Text(items.contains { $0.isGameBall }
-                     ? "Game ball set - the judge leans hardest on it."
-                     : "Tap ○ to call your game ball - the one task that matters most.")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(items.contains { $0.isGameBall } ? accent.opacity(0.8) : Color(white: 0.35))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 6)
-            }
-
-            if items.count < 3 {
-                Text("Add at least 3 tasks  ·  \(items.count)/3")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color(white: 0.35))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 4)
-            }
-
+        VStack(spacing: 10) {
+            // The add field stays pinned at the top so it - and freshly added
+            // tasks right below it - remain visible even with the keyboard up.
             HStack(spacing: 10) {
                 TextField("Add a task…", text: $newItem)
                     .font(.system(size: 16))
@@ -133,6 +86,7 @@ struct EntryView: View {
                     .padding(14)
                     .background(Color(white: 0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .submitLabel(.done)
                     .onSubmit(addItem)
                 Button(action: addItem) {
                     Image(systemName: "plus")
@@ -145,26 +99,26 @@ struct EntryView: View {
                 .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.horizontal, 24)
-            .padding(.top, 8)
 
-            if !items.isEmpty {
-                Button(action: runCoach) {
-                    HStack(spacing: 8) {
-                        if coachLoading {
-                            ProgressView().tint(accent).scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "sparkles")
-                        }
-                        Text(coachLoading ? "Coach is reading…" : "Tighten my plan")
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                .disabled(coachLoading)
+            hintBar
                 .padding(.horizontal, 24)
-                .padding(.top, 4)
+
+            // The list takes the remaining height and scrolls under the keyboard.
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach($items) { $item in
+                        taskRow($item)
+                    }
+                    if items.isEmpty {
+                        Text("Your plan is empty. Add a few tasks above to get started.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(white: 0.3))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 10)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
             }
         }
         .sheet(isPresented: $showCoaching) {
@@ -172,6 +126,77 @@ struct EntryView: View {
                 if items.indices.contains(suggestion.index) {
                     items[suggestion.index].title = suggestion.improved
                 }
+            }
+        }
+    }
+
+    private func taskRow(_ item: Binding<ChecklistItem>) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                toggleGameBall(item.wrappedValue.id)
+            } label: {
+                Image(systemName: item.wrappedValue.isGameBall ? "basketball.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(item.wrappedValue.isGameBall ? accent : accent.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+            TextField("Task", text: item.title)
+                .font(.system(size: 16))
+                .foregroundStyle(.white)
+            Button {
+                items.removeAll { $0.id == item.wrappedValue.id }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(Color(white: 0.3))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color(white: 0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // One compact line: progress toward 3 tasks, the game-ball nudge, and the
+    // coach shortcut - so the controls don't stack up and crowd the screen.
+    private var hintBar: some View {
+        HStack(spacing: 8) {
+            if items.count < 3 {
+                Image(systemName: "circle.dashed")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(white: 0.4))
+                Text("Add at least 3 tasks · \(items.count)/3")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(white: 0.4))
+            } else if items.contains(where: { $0.isGameBall }) {
+                Image(systemName: "basketball.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(accent.opacity(0.8))
+                Text("Game ball set - the judge leans hardest on it.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(accent.opacity(0.8))
+            } else {
+                Image(systemName: "circle")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(white: 0.4))
+                Text("Tap ○ to call your game ball.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(white: 0.4))
+            }
+            Spacer(minLength: 8)
+            if !items.isEmpty {
+                Button(action: runCoach) {
+                    HStack(spacing: 5) {
+                        if coachLoading {
+                            ProgressView().tint(accent).scaleEffect(0.7)
+                        } else {
+                            Image(systemName: "sparkles").font(.system(size: 12))
+                        }
+                        Text(coachLoading ? "Reading…" : "Tighten")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundStyle(accent)
+                }
+                .disabled(coachLoading)
             }
         }
     }
@@ -224,6 +249,23 @@ struct EntryView: View {
         ScrollView {
             VStack(spacing: 14) {
                 editPlanBar
+
+                if !game.isLoggingOpen {
+                    HStack(spacing: 10) {
+                        Image(systemName: "clock.badge.checkmark")
+                            .foregroundStyle(accent)
+                        Text("Logging opens at 6:00 PM. Fill this in now - you'll submit once the window's open. It closes at 11:59 PM.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(white: 0.6))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(white: 0.07))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.3), lineWidth: 1))
+                }
 
                 ForEach($items) { $item in
                     VStack(alignment: .leading, spacing: 10) {
@@ -342,7 +384,7 @@ struct EntryView: View {
     // MARK: Primary action
 
     private var primaryButton: some View {
-        let ready = isMorning ? items.count >= 3 : eveningReady
+        let ready = isMorning ? items.count >= 3 : (eveningReady && game.isLoggingOpen)
         return Button {
             if isMorning {
                 game.checklist = items
@@ -355,7 +397,7 @@ struct EntryView: View {
                 goToSubmit = true
             }
         } label: {
-            Text(isMorning ? "Lock in the plan" : "Take it to the judge")
+            Text(primaryTitle)
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(ready ? .black : Color(white: 0.3))
                 .frame(maxWidth: .infinity)
@@ -370,11 +412,18 @@ struct EntryView: View {
         .animation(.easeInOut(duration: 0.15), value: ready)
     }
 
+    private var primaryTitle: String {
+        if isMorning { return "Lock in the plan" }
+        if !game.isLoggingOpen { return "Logging opens at 6:00 PM" }
+        return "Take it to the judge"
+    }
+
     // Every item needs either proof (done) or a reason (not done). Must finish
-    // any plan edits first, and keep at least 3 tasks.
+    // any plan edits first, keep at least 3 tasks, and be inside the 6PM window.
     private var eveningReady: Bool {
         !editingPlan
             && items.count >= 3
+            && game.isLoggingOpen
             && items.allSatisfy {
                 !$0.title.trimmingCharacters(in: .whitespaces).isEmpty
                     && !$0.note.trimmingCharacters(in: .whitespaces).isEmpty
@@ -391,7 +440,8 @@ struct EntryView: View {
     private func addItem() {
         let trimmed = newItem.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        items.append(ChecklistItem(title: trimmed))
+        // Newest on top, right under the input, so it's immediately visible.
+        items.insert(ChecklistItem(title: trimmed), at: 0)
         newItem = ""
     }
 

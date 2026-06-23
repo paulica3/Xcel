@@ -8,6 +8,7 @@ enum NotificationManager {
     private enum Id {
         static let morning = "xcel.morning"
         static let lockWarning = "xcel.lockwarning"
+        static let loggingOpen = "xcel.loggingopen"
         static let evening = "xcel.evening"
         // The 4pm check-up is scheduled per-day so it can carry the live score.
         static let checkupPrefix = "xcel.checkup."
@@ -44,7 +45,7 @@ enum NotificationManager {
 
     static func reschedule(enabled: Bool, morning: (hour: Int, minute: Int), evening: (hour: Int, minute: Int)) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Id.morning, Id.lockWarning, Id.evening])
+        center.removePendingNotificationRequests(withIdentifiers: [Id.morning, Id.lockWarning, Id.loggingOpen, Id.evening])
         guard enabled else { return }
 
         addRepeating(id: Id.morning, hour: morning.hour, minute: morning.minute,
@@ -54,6 +55,10 @@ enum NotificationManager {
         addRepeating(id: Id.lockWarning, hour: lockWarnHour, minute: lockWarnMinute,
                      title: "Last call to edit",
                      body: "Your game plan locks at 12:00. Make your changes now - no edits after noon.")
+
+        addRepeating(id: Id.loggingOpen, hour: Game.loggingOpenHour, minute: 0,
+                     title: "Logging is open",
+                     body: "The night shift is on. Log your day now - the window closes at 11:59 PM.")
 
         addRepeating(id: Id.evening, hour: evening.hour, minute: evening.minute,
                      title: "How'd it go?",

@@ -242,7 +242,7 @@ struct SeriesView: View {
     private func ctaLabel(for game: Game) -> some View {
         switch game.verdict {
         case .pending:
-            Text(game.morningCompleted ? "Log Game \(game.gameNumber)" : "Set the plan - Game \(game.gameNumber)")
+            Text(pendingCTATitle(for: game))
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(.black)
         case .win:
@@ -260,6 +260,12 @@ struct SeriesView: View {
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(Color(white: 0.45))
         }
+    }
+
+    private func pendingCTATitle(for game: Game) -> String {
+        if !game.morningCompleted { return "Set the plan - Game \(game.gameNumber)" }
+        if !game.isLoggingOpen { return "Prep your log - opens 6 PM" }
+        return "Log Game \(game.gameNumber)"
     }
 
     private func ctaBackground(for game: Game) -> Color {

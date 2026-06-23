@@ -179,6 +179,16 @@ final class Game {
         return Date() >= noon
     }
 
+    // Logging the day's result only opens at 6 PM local time and runs through end
+    // of day - you can't grade a day you haven't finished living. Past days read
+    // as open (their 6 PM is behind us); today gates until 18:00.
+    static let loggingOpenHour = 18
+    var isLoggingOpen: Bool {
+        let cal = Calendar.current
+        guard let open = cal.date(bySettingHour: Game.loggingOpenHour, minute: 0, second: 0, of: date) else { return true }
+        return Date() >= open
+    }
+
     // Past, unjudged, and the user had a chance to play it (series already existed).
     func isMissed(seriesCreatedAt: Date) -> Bool {
         guard verdict == .pending else { return false }

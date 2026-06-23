@@ -23,6 +23,8 @@ struct InfoView: View {
                              "Seven games, Monday through Sunday. A fresh series starts every week.")
                         rule("calendar", "Each game",
                              "Morning: set your game plan (at least 3 tasks). Night: log how it went with proof. The Judge calls it a W or L.")
+                        rule("clock.badge.checkmark", "Logging window",
+                             "Grade your day after 6:00 PM and before 11:59 PM. You can prep the entry earlier, but you only submit once you've actually played the day out.")
                         rule("basketball.fill", "The game ball",
                              "Tap the ○ next to your most important task to make it the game ball. The Judge leans hardest on it. Nail it and a close day tips your way.")
                         rule("camera.fill", "Photo proof",
