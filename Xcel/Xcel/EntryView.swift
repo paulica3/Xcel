@@ -41,6 +41,18 @@ struct EntryView: View {
                 extraNotes = game.extraNotes
             }
         }
+        .onDisappear { persistEveningDraft() }
+    }
+
+    // Save in-progress evening proof/notes so leaving the page (e.g. before the
+    // 6 PM window opens) doesn't lose the work. Only for the evening review -
+    // never the morning builder, since writing an empty/partial checklist there
+    // would flip the day out of "set the plan" mode.
+    private func persistEveningDraft() {
+        guard !isMorning, !items.isEmpty else { return }
+        game.checklist = items
+        game.extraNotes = extraNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? modelContext.save()
     }
 
     // MARK: Chrome
