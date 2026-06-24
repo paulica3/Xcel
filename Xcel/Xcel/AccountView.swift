@@ -106,6 +106,7 @@ struct AccountView: View {
                                 .padding(16)
                             }
                         }
+                        .frame(maxWidth: .infinity)
                         .background(Color(white: 0.07))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
@@ -121,10 +122,15 @@ struct AccountView: View {
                         VStack(spacing: 0) {
                             placeholderRow("crown.fill", "Go Premium")
                         }
+                        .frame(maxWidth: .infinity)
                         .background(Color(white: 0.07))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
+                // Pin content to the viewport width so greedy children (Toggle,
+                // the color grid) can't report an oversized width and make the
+                // scroll view drift left/right horizontally.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
             }
         }
@@ -307,6 +313,7 @@ struct AccountView: View {
                 .foregroundStyle(Color(white: 0.35))
             content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // Shows the comic portrait once its asset exists; falls back to a glyph tile.
