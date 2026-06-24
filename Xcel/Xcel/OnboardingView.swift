@@ -22,11 +22,27 @@ struct OnboardingView: View {
         Slide(icon: "gavel.fill",
               kicker: "THE JUDGE",
               title: "Every night, you get a verdict",
-              body: "Set a game plan in the morning. Log how it went at night with real proof. The Judge calls it - a W or an L. Tough but fair."),
+              body: "Set a game plan in the morning - tap one task as your game ball, the one that matters most. The Judge calls the day a W or an L. Tough but fair."),
+        Slide(icon: "clock.badge.checkmark",
+              kicker: "THE WINDOW",
+              title: "Prove it after 6 PM",
+              body: "Prep your plan any time, but the result only logs between 6:00 PM and 11:59 PM. Back a done task with a photo - it's checked on your phone, and proof the Judge can trust counts for more."),
         Slide(icon: "flame.fill",
               kicker: "THE STAKES",
               title: "A loss isn't the end",
-              body: "Down 1-3? Storm back and steal it 4-3 - the best feeling in the game. Miss a day and it's an automatic L. Show up.")
+              body: "Down 1-3? Storm back and steal it 4-3 - the best feeling in the game. Miss a day and it's an automatic L. Show up."),
+        Slide(icon: "flag.fill",
+              kicker: "THE CHALLENGE",
+              title: "Think a call was wrong?",
+              body: "Contest one loss a series. Own the mistake and show how you'll fix it - the Judge can overturn it into a W. Win it and you're on the hook: live out your plan next week, or you lose your challenge."),
+        Slide(icon: "trophy.circle.fill",
+              kicker: "THE LONG GAME",
+              title: "Build a dynasty",
+              body: "Win four series to raise a banner and earn a ring. Bank Momentum from your wins and spend it on power-ups. The Judge even remembers your history - it coaches like a GM who's seen every game."),
+        Slide(icon: "person.crop.circle.fill",
+              kicker: "MAKE IT YOURS",
+              title: "Set your style",
+              body: "Pick your accent color and your guide's voice in your profile, and set recurring daily tasks so your staples load into every new plan automatically.")
     ]
 
     var body: some View {
