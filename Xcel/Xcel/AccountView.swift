@@ -28,7 +28,8 @@ struct AccountView: View {
         return ZStack {
             Color.arenaBlack.ignoresSafeArea()
 
-            ScrollView {
+            GeometryReader { geo in
+              ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     header
 
@@ -148,11 +149,15 @@ struct AccountView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
-                // Pin content to the viewport width so greedy children (Toggle,
-                // the color grid) can't report an oversized width and make the
-                // scroll view drift left/right horizontally.
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // Hard-clamp the scroll content to the exact viewport width. A
+                // child that reports a width wider than the screen would let the
+                // ScrollView pan horizontally - and .frame(maxWidth:) does NOT
+                // prevent that (it only proposes a size; a child can still report
+                // wider). A fixed width makes horizontal scroll impossible; any
+                // overflow is clipped rather than scrollable.
                 .padding(24)
+                .frame(width: geo.size.width, alignment: .leading)
+              }
             }
         }
         .sheet(isPresented: $showInsights) { InsightsView() }
