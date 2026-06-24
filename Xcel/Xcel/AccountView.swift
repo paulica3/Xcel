@@ -11,6 +11,7 @@ struct AccountView: View {
     @State private var showTrophies = false
     @State private var showPostseason = false
     @State private var showPowerUps = false
+    @State private var showRecurring = false
 
     private var accent: Color { settings.accent.color }
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
@@ -30,6 +31,7 @@ struct AccountView: View {
                     insightsRow
                     postseasonRow
                     powerUpsRow
+                    recurringRow
                     trophyRow
 
                     section("YOUR NAME") {
@@ -130,6 +132,7 @@ struct AccountView: View {
         .sheet(isPresented: $showTrophies) { TrophyCaseView() }
         .sheet(isPresented: $showPostseason) { RoadToFinalsView() }
         .sheet(isPresented: $showPowerUps) { PowerUpsView() }
+        .sheet(isPresented: $showRecurring) { RecurringTasksView() }
     }
 
     private var postseasonRow: some View {
@@ -140,6 +143,17 @@ struct AccountView: View {
     private var powerUpsRow: some View {
         navRow(icon: "bolt.circle.fill", title: "Locker room",
                subtitle: "Spend Momentum on power-ups") { showPowerUps = true }
+    }
+
+    private var recurringRow: some View {
+        navRow(icon: "repeat", title: "Daily tasks",
+               subtitle: recurringSubtitle) { showRecurring = true }
+    }
+
+    private var recurringSubtitle: String {
+        let n = settings.recurringTasks.count
+        if n == 0 { return "Auto-add staples to every new day" }
+        return "\(n) task\(n == 1 ? "" : "s") added to every new day"
     }
 
     // Shared styling for the tappable destination rows.

@@ -47,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Series scoreline displayed at all times (e.g. "3-2 - Game 6 tonight")
 - A loss is framed within the series context, never as a standalone life judgment
 - First team to 4 wins takes the series
+- **No draws** (`Series.seriesResult`): a standard 7-game week always reaches 4 wins or losses, so someone wins every week. The only way a week can end level (e.g. 3-3 with nobody at 4) is an excused game from a **Timeout power-up** (a won Challenge Call now flips the L to a W, so it no longer voids a slot). Once every game is settled (`allGamesSettled`), more wins takes it; a dead-even battle resolves to a WIN for the user - the "reward the fight" ethos. There is never a displayed-as-final draw.
 - **Dynamic difficulty** (`JudgeStance` in JudgeService): down 2+ games triggers "Home Court Advantage" (judge eases up, honest effort earns a W); 3-0 lead triggers "Raise the Bar" (judge gets stricter). Goal: users win more often than not, but a runaway lead gets challenged.
 
 ---
@@ -70,7 +71,9 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Weekly series scoreline + basic series history
 - ✅ Two-touch ritual + 5 daily notifications (morning, 11:30 lock warning, 4pm score check-up, 6pm logging-open, evening), noon edit lock
 - ✅ Logging window - the evening result can only be submitted between 6:00 PM and 11:59 PM local (`Game.isLoggingOpen`, `Game.loggingOpenHour`); the entry can be pre-filled earlier but not graded. Gated in `EntryView` + reflected in the `SeriesView` CTA.
-- ✅ Injured Reserve - one excused loss per series (`Game.excused`, `Series.canUseInjuredReserve`)
+- ✅ Challenge Call - one contested loss per series (NBA coach's-challenge style). User makes a case (own the mistake + a concrete fix plan); the AI judge reviews and either overturns (**flips the L into a W**, the call goes the player's way like a real NBA challenge) or denies it. One shot, win or lose, so it's not a weekly free pass. Replaced the old "Injured Reserve" free-excuse. (`ChallengeService` / `ChallengeSheet`, `Game.challenged`/`challengeOverturned`/`challengeRuling`, `Series.canChallenge`; a granted challenge sets `Game.verdict = .win`.)
+- ✅ Challenge follow-through accountability - a won challenge is a promise. The **next** series, once complete, is judged (on-device AI, heuristic fallback) against the plan the user pledged; if they didn't live it out, the Challenge Call is **locked for the following series** - earn it back by actually doing what you said. (`FollowThroughService`, `Series.followUpEvaluated`/`followUpHonored`/`overturnedChallengePlan`/`isComplete`; evaluated lazily on app open in `ContentView.task`, lockout surfaced in `GameResultView`.)
+- ✅ Recurring daily tasks - user sets staple tasks (e.g. "20 pushups after waking up") in Account; they auto-pre-fill every new day's morning plan and stay fully editable. (`AppSettings.recurringTasks` in UserDefaults, `RecurringTasksView`, pre-filled in `EntryView.onAppear`.)
 
 ### Premium candidates (built on `main` now, may become paid later)
 - ✅ Season stats on Home (all-time record, streak, best comeback)

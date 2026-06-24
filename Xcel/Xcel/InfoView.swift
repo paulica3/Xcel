@@ -43,6 +43,10 @@ struct InfoView: View {
                              "When you're down 2+, the Judge eases up to keep you in the fight.")
                         rule("clock.badge.xmark", "Miss a game?",
                              "Skip a day and it's an automatic L. No-shows don't get a pass.")
+                        rule("flag.fill", "Challenge Call",
+                             "Think a loss was wrong? Contest it once a series. Make your case - own the mistake and how you'll fix it - and the judge can overturn the L into a W. Win or lose, you only get one. Win it and you're on the hook: live out the plan you promised next week, or you lose your challenge the series after.")
+                        rule("repeat", "Daily tasks",
+                             "Got staples you do every day? Set them in your profile and they'll auto-load into every new game plan - no re-typing.")
                         rule("building.columns.fill", "The Judge",
                              "Tough but fair. Rewards honesty and real effort - sees right through vague proof and excuses.")
                         rule("brain.head.profile", "The GM remembers",

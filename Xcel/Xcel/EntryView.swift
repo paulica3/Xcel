@@ -39,6 +39,11 @@ struct EntryView: View {
             if !isMorning {
                 items = game.checklist
                 extraNotes = game.extraNotes
+            } else if items.isEmpty {
+                // Fresh plan - pre-load the user's recurring daily tasks so they
+                // don't re-type their staples. Fully editable from here.
+                items = settings.recurringTasks
+                    .map { ChecklistItem(title: $0) }
             }
         }
         .onDisappear { persistEveningDraft() }

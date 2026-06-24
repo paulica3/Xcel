@@ -135,6 +135,11 @@ final class AppSettings {
     var guide: Guide {
         didSet { UserDefaults.standard.set(guide.rawValue, forKey: Keys.guide) }
     }
+    // Recurring daily tasks - pre-loaded into every new day's game plan so the
+    // user doesn't re-type their staples (e.g. "20 pushups after waking up").
+    var recurringTasks: [String] {
+        didSet { UserDefaults.standard.set(recurringTasks, forKey: Keys.recurringTasks) }
+    }
 
     // Stored as a file in Documents (too big for UserDefaults).
     var profileImageData: Data? {
@@ -187,6 +192,7 @@ final class AppSettings {
         static let accent = "accentTheme"
         static let userName = "userName"
         static let guide = "guide"
+        static let recurringTasks = "recurringTasks"
         static let hasOnboarded = "hasOnboarded"
         static let notifEnabled = "notifEnabled"
         static let stakesEnabled = "stakesEnabled"
@@ -201,6 +207,7 @@ final class AppSettings {
         self.accent = AccentTheme(rawValue: d.string(forKey: Keys.accent) ?? "") ?? .green
         self.userName = d.string(forKey: Keys.userName) ?? "Champ"
         self.guide = Guide(rawValue: d.string(forKey: Keys.guide) ?? "") ?? .king
+        self.recurringTasks = d.stringArray(forKey: Keys.recurringTasks) ?? []
         self.profileImageData = Self.readAvatar()
         self.hasOnboarded = d.bool(forKey: Keys.hasOnboarded)
         self.notificationsEnabled = d.object(forKey: Keys.notifEnabled) as? Bool ?? true

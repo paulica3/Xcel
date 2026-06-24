@@ -181,7 +181,7 @@ struct SeriesView: View {
 
     private func logRow(_ game: Game) -> some View {
         let isWin = game.verdict == .win
-        let badge = game.excused ? "IR" : (isWin ? "W" : "L")
+        let badge = game.excused ? "EX" : (isWin ? "W" : "L")
         return HStack(spacing: 14) {
             Text(badge)
                 .font(.system(size: game.excused ? 14 : 20, weight: .black))

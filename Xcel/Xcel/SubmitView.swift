@@ -252,6 +252,9 @@ struct SubmitView: View {
                 } else if series.wasComeback {
                     celebrationTitle = "COMEBACK"
                     celebrationSubtitle = "Down and out - and you took the series anyway."
+                } else if series.wins == series.losses {
+                    celebrationTitle = "SERIES WON"
+                    celebrationSubtitle = "Level at \(series.wins)–\(series.losses) - you took it on grit when life got a vote."
                 } else {
                     celebrationTitle = "SERIES WON"
                     celebrationSubtitle = "You took the series \(series.wins)–\(series.losses)."

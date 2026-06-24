@@ -8,8 +8,16 @@ struct GameResultView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var allSeries: [Series]
+    @State private var showChallenge = false
 
     private var accent: Color { settings.accent.color }
+
+    // The Challenge Call is locked when last challenge's promise went unmet.
+    private var challengeLocked: Bool {
+        guard let series = game.series else { return false }
+        return FollowThroughService.challengeLocked(for: series, in: allSeries)
+    }
 
     private var dateLabel: String {
         let f = DateFormatter()
@@ -37,7 +45,7 @@ struct GameResultView: View {
 
                     verdictBlock
 
-                    injuredReserveBlock
+                    resolutionBlock
 
                     if game.hasBoxScore {
                         BoxScoreView(effort: game.scoreEffort, discipline: game.scoreDiscipline,
@@ -65,6 +73,9 @@ struct GameResultView: View {
             }
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $showChallenge) {
+            ChallengeSheet(game: game, onComplete: {})
+        }
     }
 
     private var topBar: some View {
@@ -101,12 +112,15 @@ struct GameResultView: View {
     }
 
     @ViewBuilder
-    private var injuredReserveBlock: some View {
-        if game.excused {
+    private var resolutionBlock: some View {
+        if game.challenged {
+            challengeResultCard
+        } else if game.excused {
+            // Voided by a Timeout power-up (no challenge attached).
             HStack(spacing: 10) {
-                Image(systemName: "cross.case.fill")
+                Image(systemName: "pause.circle.fill")
                     .foregroundStyle(accent)
-                Text("Injured Reserve - this loss doesn't count.")
+                Text("Excused - this loss doesn't count.")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
@@ -115,33 +129,87 @@ struct GameResultView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(white: 0.07))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-        } else if game.verdict == .loss, game.series?.canUseInjuredReserve == true {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Real life got in the way? You've got one Injured Reserve this series - use it to wipe this L from the record.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(white: 0.6))
-                Button {
-                    game.excused = true
-                    try? modelContext.save()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "cross.case.fill")
-                        Text("Place on Injured Reserve")
-                    }
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
-                    .background(accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(white: 0.07))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.3), lineWidth: 1))
+        } else if game.verdict == .loss, game.series?.canChallenge == true {
+            if challengeLocked { challengeLockedCard } else { challengeOfferCard }
         }
+    }
+
+    private var challengeOfferCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Think this shouldn't have been an L? Challenge the call. Make your case - own what went wrong and how you'll fix it - and the judge can overturn it into a W. One challenge per series, win or lose. Win it and you're on the hook: live out your plan next week or you lose the challenge after that.")
+                .font(.system(size: 13))
+                .foregroundStyle(Color(white: 0.6))
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                showChallenge = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "flag.fill")
+                    Text("Challenge the call")
+                }
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(accent)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.3), lineWidth: 1))
+    }
+
+    // Shown when a prior won challenge's promise went unmet - no challenge this week.
+    private var challengeLockedCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "flag.slash.fill")
+                .foregroundStyle(Color(white: 0.5))
+            Text("Challenge locked. You won a challenge but didn't follow through on the plan you promised. Earn it back - your Challenge Call returns next series.")
+                .font(.system(size: 13))
+                .foregroundStyle(Color(white: 0.55))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // The outcome of a spent Challenge Call - overturned (L wiped) or denied.
+    private var challengeResultCard: some View {
+        let won = game.challengeOverturned
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: won ? "checkmark.seal.fill" : "flag.slash.fill")
+                    .foregroundStyle(won ? accent : Color(white: 0.5))
+                Text(won ? "CHALLENGE OVERTURNED" : "CHALLENGE DENIED")
+                    .font(.system(size: 11, weight: .bold))
+                    .kerning(1.5)
+                    .foregroundStyle(won ? accent : Color(white: 0.5))
+            }
+            if !game.challengeRuling.isEmpty {
+                Text(game.challengeRuling)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(white: 0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !game.challengeStatement.isEmpty {
+                Text("Your case: \(game.challengeStatement)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(white: 0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke((won ? accent : Color(white: 0.3)).opacity(0.4), lineWidth: 1))
     }
 
     private func checklistRow(_ item: ChecklistItem) -> some View {
@@ -292,7 +360,7 @@ struct SeriesDetailView: View {
     }
 
     private func badge(for game: Game) -> String {
-        if game.excused { return "IR" }
+        if game.excused { return "EX" }
         switch game.verdict {
         case .win: return "W"
         case .loss: return "L"

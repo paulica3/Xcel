@@ -23,6 +23,10 @@ struct ContentView: View {
             settings.setUpNotifications()
             refreshCheckups()
         }
+        .task {
+            // Judge any pending Challenge Call follow-throughs from completed weeks.
+            await FollowThroughService.runPendingEvaluations(in: allSeries, context: modelContext)
+        }
         .fullScreenCover(isPresented: .constant(!settings.hasOnboarded)) {
             OnboardingView()
         }

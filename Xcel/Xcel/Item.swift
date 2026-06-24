@@ -13,6 +13,12 @@ final class Series {
     // End-of-week broadcast recap, generated once when the series finishes.
     var recapHeadline: String = ""
     var recapBody: String = ""
+    // Follow-through accountability: after a won Challenge Call, the NEXT series is
+    // checked against the promise the player made. `followUpEvaluated` marks that
+    // check as done; `followUpHonored` is whether they actually lived out the plan.
+    // A dishonored follow-up locks the Challenge Call for the series after this one.
+    var followUpEvaluated: Bool = false
+    var followUpHonored: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \Game.series) var games: [Game]
 
     var hasRecap: Bool { !recapBody.isEmpty }
@@ -38,11 +44,29 @@ final class Series {
     var losses: Int { games.filter { $0.verdict == .loss && !$0.excused }.count }
     var judgedCount: Int { games.filter { $0.verdict != .pending }.count }
 
-    // One Injured Reserve per series: a single loss can be excused so it doesn't
-    // count against the record (real life happens - once a week, no questions).
-    var injuredReserveUsed: Bool { games.contains { $0.excused } }
-    var canUseInjuredReserve: Bool {
-        !isWarmup && !injuredReserveUsed && games.contains { $0.verdict == .loss && !$0.excused }
+    // One Challenge Call per series (NBA coach's-challenge style): the user can
+    // contest a single loss by making their case to the judge. Win or lose the
+    // challenge, it's spent - so it's used on a game with a real reason, not as a
+    // weekly free pass. A successful challenge flips the loss into a win (the call
+    // is overturned in the player's favour, just like the NBA).
+    var challengeUsed: Bool { games.contains { $0.challenged } }
+    var canChallenge: Bool {
+        !isWarmup && !challengeUsed && games.contains { $0.verdict == .loss && !$0.excused && !$0.challenged }
+    }
+
+    // The promise text from a won Challenge Call this series (if any) - the plan
+    // the player will be held to next week by the follow-through check.
+    var overturnedChallengePlan: String? {
+        games.first { $0.challenged && $0.challengeOverturned }?.challengeStatement
+    }
+
+    // A real series is "complete" once it clinches or its calendar week has passed
+    // - the point at which we can fairly judge whether a follow-through happened.
+    var isComplete: Bool {
+        guard !isWarmup else { return false }
+        if seriesResult != .inProgress { return true }
+        let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        return Date() >= weekEnd
     }
 
     // Games the user can still play: today + future days this week that are
@@ -54,12 +78,26 @@ final class Series {
         }.count
     }
 
+    // Every game has a final state (excused games carry verdict .loss but are
+    // flagged excused). The week is settled once none are still pending.
+    var allGamesSettled: Bool {
+        !games.isEmpty && games.allSatisfy { $0.verdict != .pending }
+    }
+
     var seriesResult: SeriesResult {
         // A warm-up never clinches - it stays "in progress" so it's never
         // framed as a won or lost series.
         if isWarmup { return .inProgress }
         if wins >= 4 { return .won }
         if losses >= 4 { return .lost }
+        // Excused games (Injured Reserve / Timeout) void a slot, so the counting
+        // games can be even and a week can end level - 3-3 with nobody at 4.
+        // There are NO draws: once every game is settled, more wins takes it, and
+        // a dead-even battle goes to the competitor who fought through the
+        // adversity that earned the excuse.
+        if allGamesSettled {
+            return losses > wins ? .lost : .won
+        }
         return .inProgress
     }
 
@@ -148,8 +186,16 @@ final class Game {
     var scoreDiscipline: Int = 0
     var scoreMood: Int = 0
     var scoreProductivity: Int = 0
-    // Placed on Injured Reserve - the loss is excused and doesn't count.
+    // The loss is excused and no longer counts (via a successful Challenge Call
+    // or a Timeout power-up).
     var excused: Bool = false
+    // Challenge Call: the user contested this loss. `challenged` means the one
+    // per-series challenge was spent here (win or lose); `challengeOverturned`
+    // is whether the judge flipped the L into a W; `challengeRuling` is the call.
+    var challenged: Bool = false
+    var challengeOverturned: Bool = false
+    var challengeStatement: String = ""
+    var challengeRuling: String = ""
     var series: Series?
 
     init(date: Date, gameNumber: Int) {
