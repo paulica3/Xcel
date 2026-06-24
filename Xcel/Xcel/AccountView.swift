@@ -14,7 +14,13 @@ struct AccountView: View {
     @State private var showRecurring = false
 
     private var accent: Color { settings.accent.color }
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 4)
+
+    // Accent swatches laid out in fixed rows of 4 (non-lazy - see ACCENT COLOR).
+    private var swatchRows: [[AccentTheme]] {
+        stride(from: 0, to: AccentTheme.allCases.count, by: 4).map { start in
+            Array(AccentTheme.allCases[start..<min(start + 4, AccentTheme.allCases.count)])
+        }
+    }
 
     var body: some View {
         @Bindable var settings = settings
@@ -44,9 +50,24 @@ struct AccountView: View {
                     }
 
                     section("ACCENT COLOR") {
-                        LazyVGrid(columns: columns, spacing: 14) {
-                            ForEach(AccentTheme.allCases) { theme in
-                                swatch(theme)
+                        // A plain (non-lazy) grid: LazyVGrid recalculates as the
+                        // ScrollView scrolls and can briefly overflow the width,
+                        // dragging the whole page sideways. 8 swatches don't need
+                        // laziness, so lay them out in fixed rows of 4.
+                        VStack(spacing: 14) {
+                            ForEach(swatchRows, id: \.self) { row in
+                                HStack(spacing: 14) {
+                                    ForEach(row) { theme in
+                                        swatch(theme)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    // Pad a short final row so cells keep their width.
+                                    if row.count < 4 {
+                                        ForEach(0..<(4 - row.count), id: \.self) { _ in
+                                            Color.clear.frame(maxWidth: .infinity)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
