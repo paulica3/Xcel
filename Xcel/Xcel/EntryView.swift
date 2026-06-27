@@ -192,9 +192,6 @@ struct EntryView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(accent.opacity(0.8))
             } else {
-                Image(systemName: "circle")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color(white: 0.4))
                 Text("Tap ○ to call your game ball.")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color(white: 0.4))

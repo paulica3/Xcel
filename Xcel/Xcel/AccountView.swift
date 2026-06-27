@@ -178,7 +178,7 @@ struct AccountView: View {
 
     private var awardsRow: some View {
         navRow(icon: "rosette", title: "Awards night",
-               subtitle: "Monthly hardware · MVP, MIP, DPOY, 6MOY") { showAwards = true }
+               subtitle: "Monthly silverware") { showAwards = true }
     }
 
     private var powerUpsRow: some View {
@@ -269,7 +269,7 @@ struct AccountView: View {
                     Text("Season insights")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("Monthly verdict · where you're struggling")
+                    Text("Monthly verdict")
                         .font(.system(size: 12))
                         .foregroundStyle(Color(white: 0.45))
                 }
