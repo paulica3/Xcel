@@ -218,18 +218,30 @@ final class AppSettings {
         self.eveningMinute = d.object(forKey: Keys.eveningMinute) as? Int ?? 0
     }
 
-    // Request permission once (on launch), then schedule.
-    func setUpNotifications() {
+    // Request permission once (on launch), then schedule with today's state so
+    // already-completed steps don't nag.
+    func setUpNotifications(skipTodayMorning: Bool = false, skipTodayEvening: Bool = false) {
         NotificationManager.requestAuthorization { _ in
-            DispatchQueue.main.async { self.applySchedule() }
+            DispatchQueue.main.async {
+                self.applySchedule(skipTodayMorning: skipTodayMorning, skipTodayEvening: skipTodayEvening)
+            }
         }
     }
 
+    // Settings-driven reschedule (no game state known): schedule the full week.
     func applySchedule() {
+        applySchedule(skipTodayMorning: false, skipTodayEvening: false)
+    }
+
+    // State-aware reschedule from ContentView: drop today's morning/lock nudges if
+    // the plan is set, and today's logging/evening nudges if the day is logged.
+    func applySchedule(skipTodayMorning: Bool, skipTodayEvening: Bool) {
         NotificationManager.reschedule(
             enabled: notificationsEnabled,
             morning: (morningHour, morningMinute),
-            evening: (eveningHour, eveningMinute)
+            evening: (eveningHour, eveningMinute),
+            skipTodayMorning: skipTodayMorning,
+            skipTodayEvening: skipTodayEvening
         )
     }
 }

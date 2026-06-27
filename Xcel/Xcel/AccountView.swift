@@ -7,11 +7,13 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var photoItem: PhotosPickerItem?
+    @State private var cropImage: IdentifiableImage?
     @State private var showInsights = false
     @State private var showTrophies = false
     @State private var showPostseason = false
     @State private var showPowerUps = false
     @State private var showRecurring = false
+    @State private var showAwards = false
 
     private var accent: Color { settings.accent.color }
 
@@ -37,6 +39,7 @@ struct AccountView: View {
 
                     insightsRow
                     postseasonRow
+                    awardsRow
                     powerUpsRow
                     recurringRow
                     trophyRow
@@ -165,11 +168,17 @@ struct AccountView: View {
         .sheet(isPresented: $showPostseason) { RoadToFinalsView() }
         .sheet(isPresented: $showPowerUps) { PowerUpsView() }
         .sheet(isPresented: $showRecurring) { RecurringTasksView() }
+        .sheet(isPresented: $showAwards) { AwardsView() }
     }
 
     private var postseasonRow: some View {
         navRow(icon: "trophy.circle.fill", title: "Road to the Finals",
                subtitle: "Your playoff run · rings & banners") { showPostseason = true }
+    }
+
+    private var awardsRow: some View {
+        navRow(icon: "rosette", title: "Awards night",
+               subtitle: "Monthly hardware · MVP, MIP, DPOY, 6MOY") { showAwards = true }
     }
 
     private var powerUpsRow: some View {
@@ -323,11 +332,30 @@ struct AccountView: View {
         }
         .frame(maxWidth: .infinity)
         .onChange(of: photoItem) { _, item in
+            guard let item else { return }
             Task {
-                if let data = try? await item?.loadTransferable(type: Data.self) {
-                    settings.profileImageData = data
+                // Load the picked image, then let the user crop it to the circle
+                // before it's set as their avatar.
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let ui = UIImage(data: data) {
+                    await MainActor.run { cropImage = IdentifiableImage(image: ui) }
                 }
             }
+        }
+        .fullScreenCover(item: $cropImage) { wrapper in
+            ProfileCropView(
+                image: wrapper.image,
+                accent: accent,
+                onCrop: { data in
+                    settings.profileImageData = data
+                    cropImage = nil
+                    photoItem = nil
+                },
+                onCancel: {
+                    cropImage = nil
+                    photoItem = nil
+                }
+            )
         }
     }
 

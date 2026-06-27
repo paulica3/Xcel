@@ -2,22 +2,34 @@ import SwiftUI
 
 // The day's box score - four 0-10 ratings shown as labeled bars.
 struct BoxScoreView: View {
-    let effort: Int
-    let discipline: Int
-    let mood: Int
-    let productivity: Int
+    let effort: Double
+    let discipline: Double
+    let mood: Double
+    let productivity: Double
     let accent: Color
 
-    private var rows: [(String, Int)] {
+    private var rows: [(String, Double)] {
         [("EFFORT", effort), ("DISCIPLINE", discipline), ("MOOD", mood), ("PRODUCTIVITY", productivity)]
     }
 
+    private var overall: Double { (effort + discipline + mood + productivity) / 4 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("BOX SCORE")
-                .font(.system(size: 10, weight: .bold))
-                .kerning(2)
-                .foregroundStyle(accent)
+            HStack(alignment: .firstTextBaseline) {
+                Text("BOX SCORE")
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(2)
+                    .foregroundStyle(accent)
+                Spacer()
+                Text(fmt(overall))
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundStyle(barColor(overall))
+                    .monospacedDigit()
+                + Text(" / 10")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.4))
+            }
 
             ForEach(rows, id: \.0) { label, value in
                 VStack(alignment: .leading, spacing: 5) {
@@ -27,7 +39,7 @@ struct BoxScoreView: View {
                             .kerning(1)
                             .foregroundStyle(Color(white: 0.6))
                         Spacer()
-                        Text("\(value)")
+                        Text(fmt(value))
                             .font(.system(size: 13, weight: .black))
                             .foregroundStyle(.white)
                             .monospacedDigit()
@@ -52,8 +64,10 @@ struct BoxScoreView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    private func fmt(_ v: Double) -> String { String(format: "%.1f", v) }
+
     // Low scores lean red, high scores lean accent - quick visual read.
-    private func barColor(_ v: Int) -> Color {
+    private func barColor(_ v: Double) -> Color {
         if v <= 3 { return Color.eliminationRed }
         if v <= 6 { return Color(white: 0.55) }
         return accent

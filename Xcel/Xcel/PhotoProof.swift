@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import Photos
 import Vision
 import ImageIO
 import UIKit
@@ -27,9 +28,13 @@ enum PhotoProof {
         return scaled.jpegData(compressionQuality: 0.7)
     }
 
-    // Full verification over the ORIGINAL file data (so EXIF survives).
-    static func verify(originalData: Data, taskTitle: String) async -> PhotoProofResult {
-        let sameDay = takenToday(originalData)
+    // Full verification of a LIBRARY photo. The most reliable capture date is the
+    // Photos asset's own creationDate (set by the OS, survives screenshots, edits,
+    // and re-saves where EXIF often doesn't). We pass the picker's asset identifier
+    // and fall back to EXIF/TIFF only when the asset date isn't available.
+    static func verify(originalData: Data, assetIdentifier: String?, taskTitle: String) async -> PhotoProofResult {
+        let captureDate = await captureDate(originalData: originalData, assetIdentifier: assetIdentifier)
+        let sameDay: Bool? = captureDate.map { Calendar.current.isDateInToday($0) }
         let match = await classify(originalData, against: taskTitle)
 
         let summary: String
@@ -41,16 +46,48 @@ enum PhotoProof {
         case (false, _):
             summary = "Heads up · this photo wasn't taken today."
         case (nil, let label?):
-            summary = "Added · no date on this one, but it looks like \(label)."
+            summary = "Added · couldn't read a date, but it looks like \(label)."
         case (nil, nil):
-            summary = "Added · no date metadata on this photo."
+            summary = "Added · couldn't read this photo's date. Shoot it in-app to verify."
         }
         return PhotoProofResult(sameDay: sameDay, matchedLabel: match, summary: summary)
     }
 
-    // MARK: EXIF date
+    // A photo just captured inside the app is same-day by definition - the most
+    // trustworthy proof there is. We only run the label match for flavor.
+    static func verifyCameraShot(image: UIImage, taskTitle: String) async -> PhotoProofResult {
+        let data = image.jpegData(compressionQuality: 0.9) ?? Data()
+        let match = await classify(data, against: taskTitle)
+        let summary = match.map { "Verified · shot in-app just now, looks like \($0)." }
+            ?? "Verified · shot in-app just now."
+        return PhotoProofResult(sameDay: true, matchedLabel: match, summary: summary)
+    }
 
-    private static func takenToday(_ data: Data) -> Bool? {
+    // MARK: Capture date (Photos asset first, EXIF fallback)
+
+    private static func captureDate(originalData: Data, assetIdentifier: String?) async -> Date? {
+        if let id = assetIdentifier, let date = await assetCreationDate(id) {
+            return date
+        }
+        return exifDate(originalData)
+    }
+
+    private static func assetCreationDate(_ identifier: String) async -> Date? {
+        let status = await ensurePhotoAccess()
+        guard status == .authorized || status == .limited else { return nil }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
+        return assets.firstObject?.creationDate
+    }
+
+    private static func ensurePhotoAccess() async -> PHAuthorizationStatus {
+        let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if current == .notDetermined {
+            return await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        }
+        return current
+    }
+
+    private static func exifDate(_ data: Data) -> Date? {
         guard let src = CGImageSourceCreateWithData(data as CFData, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
         else { return nil }
@@ -67,8 +104,8 @@ enum PhotoProof {
 
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy:MM:dd HH:mm:ss"
-        guard let date = fmt.date(from: stamp) else { return nil }
-        return Calendar.current.isDateInToday(date)
+        fmt.timeZone = .current
+        return fmt.date(from: stamp)
     }
 
     // MARK: Vision classification
@@ -117,35 +154,64 @@ struct PhotoProofRow: View {
 
     @State private var pickerItem: PhotosPickerItem?
     @State private var working = false
+    @State private var showCamera = false
+
+    private var cameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
 
     var body: some View {
         Group {
             if let data = item.photoData, let ui = UIImage(data: data) {
                 attached(ui)
-            } else {
-                PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
-                    HStack(spacing: 8) {
-                        if working {
-                            ProgressView().tint(accent).scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "camera.fill")
-                        }
-                        Text(working ? "Checking the photo…" : "Add photo proof")
-                    }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(Color(white: 0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else if working {
+                HStack(spacing: 8) {
+                    ProgressView().tint(accent).scaleEffect(0.8)
+                    Text("Checking the photo…")
                 }
-                .disabled(working)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color(white: 0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                HStack(spacing: 8) {
+                    if cameraAvailable {
+                        Button { showCamera = true } label: {
+                            proofButton(icon: "camera.fill", label: "Take photo")
+                        }
+                    }
+                    PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
+                        proofButton(icon: "photo.on.rectangle", label: "Choose photo")
+                    }
+                }
             }
         }
         .onChange(of: pickerItem) { _, newValue in
             guard let newValue else { return }
             loadAndVerify(newValue)
         }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in
+                showCamera = false
+                if let image { verifyCamera(image) }
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func proofButton(icon: String, label: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+            Text(label)
+        }
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(accent)
+        .frame(maxWidth: .infinity)
+        .padding(10)
+        .background(Color(white: 0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func attached(_ ui: UIImage) -> some View {
@@ -188,13 +254,14 @@ struct PhotoProofRow: View {
 
     private func loadAndVerify(_ pick: PhotosPickerItem) {
         working = true
+        let identifier = pick.itemIdentifier
         Task {
             guard let data = try? await pick.loadTransferable(type: Data.self),
                   let ui = UIImage(data: data) else {
                 await MainActor.run { working = false }
                 return
             }
-            let result = await PhotoProof.verify(originalData: data, taskTitle: item.title)
+            let result = await PhotoProof.verify(originalData: data, assetIdentifier: identifier, taskTitle: item.title)
             let thumb = PhotoProof.thumbnail(ui)
             await MainActor.run {
                 item.photoData = thumb
@@ -202,6 +269,52 @@ struct PhotoProofRow: View {
                 item.photoNote = result.summary
                 working = false
             }
+        }
+    }
+
+    private func verifyCamera(_ image: UIImage) {
+        working = true
+        Task {
+            let result = await PhotoProof.verifyCameraShot(image: image, taskTitle: item.title)
+            let thumb = PhotoProof.thumbnail(image)
+            await MainActor.run {
+                item.photoData = thumb
+                item.photoVerified = result.verified
+                item.photoNote = result.summary
+                working = false
+            }
+        }
+    }
+}
+
+// A thin wrapper over the system camera. Returns the captured image, or nil if
+// the user cancels. Camera isn't available in the simulator - callers guard with
+// UIImagePickerController.isSourceTypeAvailable(.camera).
+struct CameraPicker: UIViewControllerRepresentable {
+    let onResult: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onResult: onResult) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onResult: (UIImage?) -> Void
+        init(onResult: @escaping (UIImage?) -> Void) { self.onResult = onResult }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            onResult(info[.originalImage] as? UIImage)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onResult(nil)
         }
     }
 }

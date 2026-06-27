@@ -6,14 +6,19 @@ import UserNotifications
 // them automatically if the user travels. Times are driven by AppSettings.
 enum NotificationManager {
     private enum Id {
-        static let morning = "xcel.morning"
-        static let lockWarning = "xcel.lockwarning"
-        static let loggingOpen = "xcel.loggingopen"
-        static let evening = "xcel.evening"
+        // Daily ritual reminders are scheduled per-day (not repeating) so today's
+        // can be skipped once the user has already done that step.
+        static let morningPrefix = "xcel.morning."
+        static let lockWarnPrefix = "xcel.lockwarning."
+        static let loggingOpenPrefix = "xcel.loggingopen."
+        static let eveningPrefix = "xcel.evening."
         // The 4pm check-up is scheduled per-day so it can carry the live score.
         static let checkupPrefix = "xcel.checkup."
         static let stakes = "xcel.stakes"
     }
+
+    // How many days ahead the daily reminders are kept topped up.
+    private static let dailyHorizon = 7
 
     // The series situation that warrants a high-stakes alert.
     enum Stakes {
@@ -43,26 +48,47 @@ enum NotificationManager {
             }
     }
 
-    static func reschedule(enabled: Bool, morning: (hour: Int, minute: Int), evening: (hour: Int, minute: Int)) {
+    // Daily ritual reminders, scheduled per-day over the next week so they can be
+    // state-aware: if the user already set today's plan, today's morning + lock
+    // nudges are skipped; if they already logged tonight's result, today's
+    // logging-open + evening nudges are skipped. Future days are always scheduled
+    // (we don't know their state yet); they're refreshed on each app open.
+    static func reschedule(enabled: Bool,
+                           morning: (hour: Int, minute: Int),
+                           evening: (hour: Int, minute: Int),
+                           skipTodayMorning: Bool = false,
+                           skipTodayEvening: Bool = false) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Id.morning, Id.lockWarning, Id.loggingOpen, Id.evening])
+        let ids = (0..<dailyHorizon).flatMap { off in
+            ["\(Id.morningPrefix)\(off)", "\(Id.lockWarnPrefix)\(off)",
+             "\(Id.loggingOpenPrefix)\(off)", "\(Id.eveningPrefix)\(off)"]
+        }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
         guard enabled else { return }
 
-        addRepeating(id: Id.morning, hour: morning.hour, minute: morning.minute,
-                     title: "Set your game plan",
-                     body: "Game day. Lock in your plan before tip-off - it locks at noon.")
-
-        addRepeating(id: Id.lockWarning, hour: lockWarnHour, minute: lockWarnMinute,
-                     title: "Last call to edit",
-                     body: "Your game plan locks at 12:00. Make your changes now - no edits after noon.")
-
-        addRepeating(id: Id.loggingOpen, hour: Game.loggingOpenHour, minute: 0,
-                     title: "Logging is open",
-                     body: "The night shift is on. Log your day now - the window closes at 11:59 PM.")
-
-        addRepeating(id: Id.evening, hour: evening.hour, minute: evening.minute,
-                     title: "How'd it go?",
-                     body: "The judge is waiting. Log your day before the buzzer.")
+        for offset in 0..<dailyHorizon {
+            let isToday = offset == 0
+            if !(isToday && skipTodayMorning) {
+                addDaily(id: "\(Id.morningPrefix)\(offset)", dayOffset: offset,
+                         hour: morning.hour, minute: morning.minute,
+                         title: "Set your game plan",
+                         body: "Game day. Lock in your plan before tip-off - it locks at noon.")
+                addDaily(id: "\(Id.lockWarnPrefix)\(offset)", dayOffset: offset,
+                         hour: lockWarnHour, minute: lockWarnMinute,
+                         title: "Last call to edit",
+                         body: "Your game plan locks at 12:00. Make your changes now - no edits after noon.")
+            }
+            if !(isToday && skipTodayEvening) {
+                addDaily(id: "\(Id.loggingOpenPrefix)\(offset)", dayOffset: offset,
+                         hour: Game.loggingOpenHour, minute: 0,
+                         title: "Logging is open",
+                         body: "The night shift is on. Log your day now - the window closes at 11:59 PM.")
+                addDaily(id: "\(Id.eveningPrefix)\(offset)", dayOffset: offset,
+                         hour: evening.hour, minute: evening.minute,
+                         title: "How'd it go?",
+                         body: "The judge is waiting. Log your day before the buzzer.")
+            }
+        }
     }
 
     // The 4pm check-up carries the current series score, so it can't be a single
@@ -141,12 +167,17 @@ enum NotificationManager {
         return "Series is \(score). \(push)"
     }
 
-    private static func addRepeating(id: String, hour: Int, minute: Int, title: String, body: String) {
-        var comps = DateComponents()
+    // Schedule a one-shot notification on the given day (0 = today) at a wall-clock
+    // time. Skips it entirely if that moment has already passed.
+    private static func addDaily(id: String, dayOffset: Int, hour: Int, minute: Int, title: String, body: String) {
+        let cal = Calendar.current
+        guard let day = cal.date(byAdding: .day, value: dayOffset, to: Date()) else { return }
+        var comps = cal.dateComponents([.year, .month, .day], from: day)
         comps.hour = hour
-        comps.minute = minute   // no time zone set → uses the device's local time
+        comps.minute = minute
+        guard let fire = cal.date(from: comps), fire > Date() else { return }
 
-        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
 
         let content = UNMutableNotificationContent()
         content.title = title

@@ -5,22 +5,22 @@ struct JudgeResult {
     let verdict: GameVerdict
     let oneLiner: String
     let feedback: String
-    // Box score, each 0-10. Defaults to zeros (= not scored) for safety.
-    var effort: Int = 0
-    var discipline: Int = 0
-    var mood: Int = 0
-    var productivity: Int = 0
+    // Box score, each 0-10 to one decimal. Defaults to zeros (= not scored).
+    var effort: Double = 0
+    var discipline: Double = 0
+    var mood: Double = 0
+    var productivity: Double = 0
 }
 
 struct BoxScore {
-    let effort: Int
-    let discipline: Int
-    let mood: Int
-    let productivity: Int
+    let effort: Double
+    let discipline: Double
+    let mood: Double
+    let productivity: Double
 
     static let dimensions = ["Effort", "Discipline", "Mood", "Productivity"]
-    var values: [Int] { [effort, discipline, mood, productivity] }
-    var average: Double { Double(effort + discipline + mood + productivity) / 4.0 }
+    var values: [Double] { [effort, discipline, mood, productivity] }
+    var average: Double { (effort + discipline + mood + productivity) / 4.0 }
 }
 
 // How hard the judge leans, based on the current series state.
@@ -164,15 +164,15 @@ private struct AppleIntelligenceJudge {
     - Judge fairly on reasons for incomplete tasks. GENUINE hardship (illness, hospital, family emergency, injury) is NOT the user's fault - do not be harsh; a day derailed by real hardship can still be a W if they handled it with integrity. Flimsy excuses ("didn't feel like it", "too tired") earn an L.
     - Never frame a loss as a standalone life judgment.
 
-    Also rate the day 0-10 on four dimensions (the "box score"):
+    Also rate the day 0-10 on four dimensions (the "box score"), to ONE DECIMAL (e.g. 7.4, 8.9):
     - effort: how hard they actually worked / showed up
     - discipline: sticking to the plan and resisting excuses
     - mood: emotional state / attitude as reflected in their entry
     - productivity: how much of real value got done
-    Be honest with these numbers - a Loss should have low scores, a strong Win high ones; nonsense proof scores near 0.
+    SCORE STRICTLY. A 10.0 is a perfect, elite, no-flaws day - it should be RARE; almost no day earns it. Use the decimal to be precise instead of rounding up: a strong, clean win usually lands 7.5-9.0, a good-not-great day 6.0-7.4, a loss below 5.0, and nonsense proof near 0. Do not give a 9 or 10 unless they truly earned it with specific, verified, complete execution. Reward real excellence, but make the top of the scale something to chase.
 
     Respond ONLY with valid JSON, nothing else:
-    {"verdict":"win","oneLiner":"...","feedback":"...","effort":7,"discipline":6,"mood":8,"productivity":7}
+    {"verdict":"win","oneLiner":"...","feedback":"...","effort":7.4,"discipline":6.8,"mood":8.1,"productivity":7.2}
     """
 
     func judge(checklist: [ChecklistItem], extraNotes: String, wins: Int, losses: Int, gameNumber: Int, stance: JudgeStance, guide: Guide, memory: String = "") async throws -> JudgeResult {
@@ -215,9 +215,10 @@ private struct AppleIntelligenceJudge {
             throw JudgeError.parseFailure(raw)
         }
         let verdict: GameVerdict = verdictStr.lowercased() == "win" ? .win : .loss
-        func score(_ key: String) -> Int {
-            let v = (json[key] as? Int) ?? Int((json[key] as? Double) ?? 0)
-            return min(10, max(0, v))
+        func score(_ key: String) -> Double {
+            let v = (json[key] as? Double) ?? Double((json[key] as? Int) ?? 0)
+            // Keep one decimal of precision, clamped to 0...10.
+            return min(10, max(0, (v * 10).rounded() / 10))
         }
         return JudgeResult(
             verdict: verdict,
@@ -321,13 +322,14 @@ private struct MockJudge {
         feedback = Self.styleFeedback(guide, win: verdict == .win, base: feedback)
 
         // Heuristic box score derived from completion + integrity of the proof.
+        // Kept strict and decimal: a clean sweep tops out around ~9, not a flat 10.
         let checkedCount = checklist.filter { $0.isDone }.count
-        func clamp(_ x: Int) -> Int { min(10, max(0, x)) }
-        let base = Int((ratio * 10).rounded())
-        let effort = clamp(Int((Double(checkedCount) / Double(total) * 10).rounded()) + (hasExtra ? 1 : 0))
-        let discipline = clamp(base + (fakeProof.isEmpty ? 1 : -3))
-        let productivity = clamp(Int((Double(credited) / Double(total) * 10).rounded()))
-        let mood = clamp(verdict == .win ? (hadHardship ? 6 : 8) : 4)
+        func clamp(_ x: Double) -> Double { min(10, max(0, (x * 10).rounded() / 10)) }
+        let base = ratio * 9.2
+        let effort = clamp(Double(checkedCount) / Double(total) * 9.0 + (hasExtra ? 0.8 : 0))
+        let discipline = clamp(base + (fakeProof.isEmpty ? 0.6 : -3.0))
+        let productivity = clamp(Double(credited) / Double(total) * 9.0)
+        let mood = clamp(verdict == .win ? (hadHardship ? 6.2 : 7.8) : 3.8)
 
         return JudgeResult(
             verdict: verdict, oneLiner: oneLiner, feedback: feedback,

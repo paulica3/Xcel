@@ -401,6 +401,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Xcel;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Xcel uses the camera so you can snap same-day photo proof of a task; it never leaves your phone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Xcel uses the microphone so you can speak your evening log instead of typing it.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Xcel lets you attach a photo as proof of a task; it's checked on-device and never leaves your phone.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Xcel transcribes your spoken log on-device so the judge can review your day.";
@@ -437,6 +438,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Xcel;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Xcel uses the camera so you can snap same-day photo proof of a task; it never leaves your phone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Xcel uses the microphone so you can speak your evening log instead of typing it.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Xcel lets you attach a photo as proof of a task; it's checked on-device and never leaves your phone.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Xcel transcribes your spoken log on-device so the judge can review your day.";

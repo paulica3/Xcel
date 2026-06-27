@@ -11,7 +11,25 @@ struct ContentView: View {
         return allSeries.first { Calendar.current.isDate($0.weekStart, inSameDayAs: monday) }
     }
 
+    @State private var showLaunch = true
+
     var body: some View {
+        ZStack {
+            mainContent
+
+            // The cold-open splash sits above everything (including onboarding) on
+            // each fresh launch, then swipes away to reveal the app.
+            if showLaunch {
+                LaunchView(accent: settings.accent.color) {
+                    withAnimation(.easeInOut(duration: 0.5)) { showLaunch = false }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(1)
+            }
+        }
+    }
+
+    private var mainContent: some View {
         NavigationStack {
             HomeView(series: currentSeries,
                      stats: CareerStats.compute(from: allSeries),
@@ -20,14 +38,23 @@ struct ContentView: View {
         .onAppear {
             ensureCurrentSeries()
             processMissedGames()
-            settings.setUpNotifications()
+            let today = currentSeries?.games.first { $0.isToday }
+            settings.setUpNotifications(
+                // Plan's set -> skip today's morning/lock nudges.
+                skipTodayMorning: today?.morningCompleted ?? false,
+                // Day's already judged -> skip today's logging/evening nudges.
+                skipTodayEvening: (today?.verdict ?? .pending) != .pending
+            )
             refreshCheckups()
         }
         .task {
             // Judge any pending Challenge Call follow-throughs from completed weeks.
             await FollowThroughService.runPendingEvaluations(in: allSeries, context: modelContext)
         }
-        .fullScreenCover(isPresented: .constant(!settings.hasOnboarded)) {
+        // Hold onboarding until the cold-open splash has been dismissed, so the
+        // sequence reads splash -> onboarding -> home (a fullScreenCover would
+        // otherwise present above the splash overlay and hide it).
+        .fullScreenCover(isPresented: .constant(!settings.hasOnboarded && !showLaunch)) {
             OnboardingView()
         }
     }

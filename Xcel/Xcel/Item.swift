@@ -180,12 +180,12 @@ final class Game {
     var verdict: GameVerdict
     var verdictOneLiner: String
     var verdictFeedback: String
-    // Box score - the day rated 0-10 across four dimensions (premium breakdown).
-    // 0 across the board means "not scored".
-    var scoreEffort: Int = 0
-    var scoreDiscipline: Int = 0
-    var scoreMood: Int = 0
-    var scoreProductivity: Int = 0
+    // Box score - the day rated 0-10 across four dimensions (premium breakdown),
+    // carried to one decimal (e.g. 9.8). 0 across the board means "not scored".
+    var scoreEffort: Double = 0
+    var scoreDiscipline: Double = 0
+    var scoreMood: Double = 0
+    var scoreProductivity: Double = 0
     // The loss is excused and no longer counts (via a successful Challenge Call
     // or a Timeout power-up).
     var excused: Bool = false
@@ -211,6 +211,11 @@ final class Game {
 
     var hasBoxScore: Bool {
         scoreEffort + scoreDiscipline + scoreMood + scoreProductivity > 0
+    }
+
+    // The day's overall mark, one decimal - the headline box-score number.
+    var boxOverall: Double {
+        (scoreEffort + scoreDiscipline + scoreMood + scoreProductivity) / 4
     }
 
     var isToday: Bool { Calendar.current.isDateInToday(date) }
@@ -270,10 +275,10 @@ struct BoxScoreAverages {
         guard !scored.isEmpty else { return .empty }
         let n = Double(scored.count)
         return BoxScoreAverages(
-            effort: Double(scored.reduce(0) { $0 + $1.scoreEffort }) / n,
-            discipline: Double(scored.reduce(0) { $0 + $1.scoreDiscipline }) / n,
-            mood: Double(scored.reduce(0) { $0 + $1.scoreMood }) / n,
-            productivity: Double(scored.reduce(0) { $0 + $1.scoreProductivity }) / n,
+            effort: scored.reduce(0) { $0 + $1.scoreEffort } / n,
+            discipline: scored.reduce(0) { $0 + $1.scoreDiscipline } / n,
+            mood: scored.reduce(0) { $0 + $1.scoreMood } / n,
+            productivity: scored.reduce(0) { $0 + $1.scoreProductivity } / n,
             count: scored.count
         )
     }
@@ -296,10 +301,10 @@ struct BoxScoreTrend {
     static func compute(from games: [Game], limit: Int = 10) -> BoxScoreTrend {
         let scored = games.filter { $0.hasBoxScore }.sorted { $0.date < $1.date }.suffix(limit)
         return BoxScoreTrend(
-            effort: scored.map { Double($0.scoreEffort) },
-            discipline: scored.map { Double($0.scoreDiscipline) },
-            mood: scored.map { Double($0.scoreMood) },
-            productivity: scored.map { Double($0.scoreProductivity) }
+            effort: scored.map { $0.scoreEffort },
+            discipline: scored.map { $0.scoreDiscipline },
+            mood: scored.map { $0.scoreMood },
+            productivity: scored.map { $0.scoreProductivity }
         )
     }
 }
