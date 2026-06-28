@@ -14,6 +14,7 @@ struct AccountView: View {
     @State private var showPowerUps = false
     @State private var showRecurring = false
     @State private var showAwards = false
+    @State private var showAppearance = false
 
     private var accent: Color { settings.accent.color }
 
@@ -37,6 +38,7 @@ struct AccountView: View {
 
                     profilePhoto
 
+                    appearanceRow
                     insightsRow
                     postseasonRow
                     awardsRow
@@ -169,11 +171,17 @@ struct AccountView: View {
         .sheet(isPresented: $showPowerUps) { PowerUpsView() }
         .sheet(isPresented: $showRecurring) { RecurringTasksView() }
         .sheet(isPresented: $showAwards) { AwardsView() }
+        .sheet(isPresented: $showAppearance) { AppearanceView() }
     }
 
     private var postseasonRow: some View {
         navRow(icon: "trophy.circle.fill", title: "Road to the Finals",
                subtitle: "Your playoff run · rings & banners") { showPostseason = true }
+    }
+
+    private var appearanceRow: some View {
+        navRow(icon: "paintpalette.fill", title: "Appearance",
+               subtitle: "Court themes · \(settings.theme.displayName)") { showAppearance = true }
     }
 
     private var awardsRow: some View {
@@ -303,6 +311,13 @@ struct AccountView: View {
     private var profilePhoto: some View {
         VStack(spacing: 12) {
             AvatarView(data: settings.profileImageData, accent: accent, size: 96)
+
+            // The name sits right under the photo - the profile's headline.
+            Text(settings.userName.isEmpty ? "Champ" : settings.userName)
+                .font(.system(size: 24, weight: .black))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
             HStack(spacing: 12) {
                 PhotosPicker(selection: $photoItem, matching: .images) {

@@ -16,6 +16,7 @@ struct EntryView: View {
     @State private var coachings: [TaskCoaching] = []
     @State private var coachLoading = false
     @State private var showCoaching = false
+    @State private var showPlanAI = false
 
     private var accent: Color { settings.accent.color }
     private var isMorning: Bool { game.checklist.isEmpty }
@@ -117,6 +118,27 @@ struct EntryView: View {
             }
             .padding(.horizontal, 24)
 
+            // Separate guided path: draft the whole plan from a one-line intention.
+            Button { showPlanAI = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                    Text(items.isEmpty ? "Plan with AI" : "Add more with AI")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(accent.opacity(0.6))
+                }
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(accent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(accent.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.3), lineWidth: 1))
+            }
+            .padding(.horizontal, 24)
+
             hintBar
                 .padding(.horizontal, 24)
 
@@ -144,6 +166,21 @@ struct EntryView: View {
                     items[suggestion.index].title = suggestion.improved
                 }
             }
+        }
+        .sheet(isPresented: $showPlanAI) {
+            PlanSheet(accent: accent) { titles in
+                mergeGeneratedTasks(titles)
+            }
+        }
+    }
+
+    // Append AI-drafted tasks to the plan, skipping ones already there.
+    private func mergeGeneratedTasks(_ titles: [String]) {
+        let existing = Set(items.map { $0.title.lowercased().trimmingCharacters(in: .whitespaces) })
+        for title in titles {
+            let key = title.lowercased().trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty, !existing.contains(key) else { continue }
+            items.append(ChecklistItem(title: title))
         }
     }
 

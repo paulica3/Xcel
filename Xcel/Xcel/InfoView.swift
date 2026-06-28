@@ -47,6 +47,12 @@ struct InfoView: View {
                              "Think a loss was wrong? Contest it once a series. Make your case - own the mistake and how you'll fix it - and the judge can overturn the L into a W. Win or lose, you only get one. Win it and you're on the hook: live out the plan you promised next week, or you lose your challenge the series after.")
                         rule("repeat", "Daily tasks",
                              "Got staples you do every day? Set them in your profile and they'll auto-load into every new game plan - no re-typing.")
+                        rule("sparkles", "Plan with AI",
+                             "Not sure where to start? Type a one-line intention and the AI drafts a concrete, provable plan you can tweak before locking in.")
+                        rule("rosette", "Awards night",
+                             "Each month earns hardware from your real numbers - MVP, Most Improved, Defensive Player, Sixth Man. Find it under your profile.")
+                        rule("paintpalette.fill", "Court themes",
+                             "Change up your arena in Appearance - Hardwood, Blacktop, Parquet, Midnight, Royal. Your accent color rides on top of any look.")
                         rule("building.columns.fill", "The Judge",
                              "Tough but fair. Rewards honesty and real effort - sees right through vague proof and excuses.")
                         rule("brain.head.profile", "The GM remembers",

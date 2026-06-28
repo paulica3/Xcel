@@ -11,16 +11,102 @@ extension Color {
 // base layer on the main screens. Lines are only a touch lighter than the black
 // backdrop so they read as court markings without lifting the dark aesthetic.
 struct CourtBackground: View {
-    var lineColor: Color = Color(white: 0.09)
+    @Environment(AppSettings.self) private var settings
+    // An explicit theme override (used by previews); otherwise the user's pick.
+    var theme: ArenaTheme? = nil
     var lineWidth: CGFloat = 1.5
+
+    private var t: ArenaTheme { theme ?? settings.theme }
 
     var body: some View {
         ZStack {
-            Color.arenaBlack
+            t.backdrop
+            if t.showGlow {
+                RadialGradient(
+                    colors: [t.glowColor.opacity(0.55), .clear],
+                    center: .center, startRadius: 4, endRadius: 460
+                )
+            }
             CourtLines()
-                .stroke(lineColor, lineWidth: lineWidth)
+                .stroke(t.line, lineWidth: lineWidth)
         }
         .ignoresSafeArea()
+    }
+}
+
+// A bundled cosmetic "look" for the court/arena. Light touch by design: a theme
+// swaps the backdrop, the court-line color, and an optional center glow - the
+// user's accent color still layers on top of everything. Dark aesthetic always.
+enum ArenaTheme: String, CaseIterable, Identifiable {
+    case hardwood, blacktop, parquet, midnight, royal
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .hardwood: return "Hardwood"
+        case .blacktop: return "Blacktop"
+        case .parquet:  return "Parquet"
+        case .midnight: return "Midnight"
+        case .royal:    return "Royal"
+        }
+    }
+
+    var tagline: String {
+        switch self {
+        case .hardwood: return "The classic. Polished maple."
+        case .blacktop: return "Street ball. All grit, no frills."
+        case .parquet:  return "Old-school championship wood."
+        case .midnight: return "Primetime, under the lights."
+        case .royal:    return "Purple-and-gold energy."
+        }
+    }
+
+    var backdrop: Color {
+        switch self {
+        case .hardwood: return Color(white: 0.04)
+        case .blacktop: return Color(white: 0.02)
+        case .parquet:  return Color(red: 0.060, green: 0.048, blue: 0.034)
+        case .midnight: return Color(red: 0.025, green: 0.030, blue: 0.055)
+        case .royal:    return Color(red: 0.045, green: 0.030, blue: 0.060)
+        }
+    }
+
+    var line: Color {
+        switch self {
+        case .hardwood: return Color(white: 0.09)
+        case .blacktop: return Color(white: 0.075)
+        case .parquet:  return Color(red: 0.20, green: 0.15, blue: 0.08)
+        case .midnight: return Color(red: 0.11, green: 0.12, blue: 0.18)
+        case .royal:    return Color(red: 0.16, green: 0.11, blue: 0.20)
+        }
+    }
+
+    var showGlow: Bool {
+        switch self {
+        case .midnight, .royal: return true
+        default: return false
+        }
+    }
+
+    var glowColor: Color {
+        switch self {
+        case .midnight: return Color(red: 0.10, green: 0.16, blue: 0.38)
+        case .royal:    return Color(red: 0.26, green: 0.12, blue: 0.36)
+        default:        return .clear
+        }
+    }
+
+    // A subtly tinted card surface to match the theme (kept very close to the
+    // neutral dark so the light-touch promise holds).
+    var surface: Color {
+        switch self {
+        case .hardwood: return Color(white: 0.07)
+        case .blacktop: return Color(white: 0.06)
+        case .parquet:  return Color(red: 0.095, green: 0.078, blue: 0.052)
+        case .midnight: return Color(red: 0.060, green: 0.070, blue: 0.100)
+        case .royal:    return Color(red: 0.080, green: 0.060, blue: 0.100)
+        }
     }
 }
 
@@ -135,6 +221,10 @@ final class AppSettings {
     var guide: Guide {
         didSet { UserDefaults.standard.set(guide.rawValue, forKey: Keys.guide) }
     }
+    // The cosmetic court/arena look. Independent of the accent color.
+    var theme: ArenaTheme {
+        didSet { UserDefaults.standard.set(theme.rawValue, forKey: Keys.theme) }
+    }
     // Recurring daily tasks - pre-loaded into every new day's game plan so the
     // user doesn't re-type their staples (e.g. "20 pushups after waking up").
     var recurringTasks: [String] {
@@ -192,6 +282,7 @@ final class AppSettings {
         static let accent = "accentTheme"
         static let userName = "userName"
         static let guide = "guide"
+        static let theme = "arenaTheme"
         static let recurringTasks = "recurringTasks"
         static let hasOnboarded = "hasOnboarded"
         static let notifEnabled = "notifEnabled"
@@ -207,6 +298,7 @@ final class AppSettings {
         self.accent = AccentTheme(rawValue: d.string(forKey: Keys.accent) ?? "") ?? .green
         self.userName = d.string(forKey: Keys.userName) ?? "Champ"
         self.guide = Guide(rawValue: d.string(forKey: Keys.guide) ?? "") ?? .king
+        self.theme = ArenaTheme(rawValue: d.string(forKey: Keys.theme) ?? "") ?? .hardwood
         self.recurringTasks = d.stringArray(forKey: Keys.recurringTasks) ?? []
         self.profileImageData = Self.readAvatar()
         self.hasOnboarded = d.bool(forKey: Keys.hasOnboarded)

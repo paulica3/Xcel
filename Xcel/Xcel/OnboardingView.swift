@@ -42,7 +42,7 @@ struct OnboardingView: View {
         Slide(icon: "person.crop.circle.fill",
               kicker: "MAKE IT YOURS",
               title: "Set your style",
-              body: "Pick your accent color and your guide's voice in your profile, and set recurring daily tasks so your staples load into every new plan automatically.")
+              body: "Pick your accent color, your court theme, and your guide's voice in your profile. Set recurring daily tasks so your staples load into every plan - or draft a whole plan with AI from a one-line intention.")
     ]
 
     var body: some View {

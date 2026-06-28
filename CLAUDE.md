@@ -88,6 +88,8 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Voice-to-text evening entry (Apple Speech, on-device; `Dictation.swift` / `MicButton`)
 - ✅ End-of-week AI series recap, broadcast style (`RecapService` / `SeriesRecapCard`)
 - ✅ Intention coaching - AI tightens vague morning tasks before lock-in (`CoachService` / `CoachingSheet`)
+- ✅ AI plan generator - a **separate guided mode** in the morning builder: type a one-line intention, the on-device AI drafts a concrete, provable checklist (3-6 tasks), the user tweaks/deselects, and it merges into the manual plan. Heuristic split fallback when Apple Intelligence is off. (`PlanService` / `PlanSheet`, wired in `EntryView`.)
+- ✅ Arena themes (cosmetics) - bundled court "looks" (Hardwood / Blacktop / Parquet / Midnight / Royal) that swap the **background** backdrop, court-line color, and optional center glow. **Light touch** (accent color stays a separate pick; layout unchanged). Theme-aware `CourtBackground` reads `AppSettings.theme`; picked in Account → Appearance with live previews. **All unlocked** in the testing build (pricing/gating deferred per build-everything-first). (`ArenaTheme` in `Theme.swift` / `AppearanceView`.)
 - ✅ Share cards - branded W/L / verdict image to IG Stories, share sheet (WhatsApp/Telegram/Messages/…); `Share.swift`
 - ✅ Trophy case - all-time achievement badges (`TrophyCaseView`)
 - ✅ High-stakes elimination/comeback notifications, separately toggleable
@@ -95,7 +97,7 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Road to the Finals / Rings / Dynasty - solo season arc: 4 series wins = 1 ring (Round 1 -> Conf. Semifinals -> Conf. Finals -> The Finals); rings stack into Champion/Back-to-Back/Three-peat/Dynasty. Read-only framing over series history, never alters the weekly loop. Ladder view, Home banner, trophies, ring-clinch ceremony. (`Postseason` / `RoadToFinalsView`.)
 - ✅ Power-ups / Locker Room - "Momentum" currency earned from wins (derived from data, can't be faked) minus spent (persisted). Two power-ups: Timeout (excuse a past L) and Buzzer Beater (re-open a past L to replay). (`PowerUpStore` / `PowerUp` / `PowerUpsView`.)
 - ✅ Photo proof - attach a done-task photo, **from the library or shot in-app** (`CameraPicker`). An in-app shot is same-day-verified by definition (most trustworthy). For library photos, the same-day check reads the **Photos asset `creationDate`** first (survives screenshots/edits/re-saves where EXIF often doesn't), falling back to EXIF/TIFF. Plus an on-device Vision label match. No network. Verified same-day proof is trusted more by the judge. (`PhotoProof` / `PhotoProofRow`, `NSCameraUsageDescription` added.)
-- **Intention checklist + photo proof** (planned): AI turns the morning intention into a checklist; user checks off items and attaches a Photos-library image. App reads the photo's EXIF date to confirm it's same-day, and uses on-device Vision/AI to check the image matches the intention. Needs PhotoKit + Vision + EXIF - substantial; design as its own phase.
+- ✅ Intention checklist + photo proof (was "planned", now built across `PlanService`/`PlanSheet` for the AI-drafted checklist and `PhotoProof` for same-day Photos-asset/EXIF + Vision verification).
 
 ### Blocked on Apple Developer Program (own phase)
 These need paid-program capabilities/entitlements (and, for widgets, a new embedded extension target) - can't be built/provisioned on a free Apple ID and shouldn't be hand-wired via CLI. Tackle once enrolled.
@@ -107,10 +109,10 @@ These need paid-program capabilities/entitlements (and, for widgets, a new embed
 - **Head-to-head rivalry weeks** - pair two members for the week ("you vs. Marcus, both 3-2, Game 7 tonight"). Social accountability is the single biggest retention driver.
 - Shared leaderboard / rivalry tracking
 
-### Cosmetics (one-time IAP)
-- Jersey-style UI themes
-- Court/arena backgrounds
-- Alternate broadcast skins (ESPN vs TNT vs NBA TV aesthetic)
+### Cosmetics (one-time IAP later; all unlocked in the testing build)
+- ✅ Court/arena backgrounds - bundled `ArenaTheme` looks (light-touch background/line/glow swaps), see the Arena themes entry above.
+- Jersey-style UI themes - deeper than the light-touch court themes (would restyle cards/components, not just the backdrop). Not built.
+- Alternate broadcast skins (original, non-trademark "broadcast" aesthetics - never literal ESPN/TNT/NBA TV; name them like the guides). Deeper restyle of scoreboard/verdict reveal. Not built.
 
 > ✅ = already built and in the testing deployment. Unchecked = not built yet.
 
