@@ -48,9 +48,23 @@ See "Roadmap - Game-changing bets" and "Accounts & Sync" below for the full deta
 - **Framework:** SwiftUI (iOS only)
 - **Target:** iPhone (developer device: iPhone 17 Pro)
 - **Storage:** SwiftData, local-only (no iCloud sync to start). Store both the raw entry text and the structured AI output (verdict, one-liner, scores) so future features like recap and search work without a re-call.
-- **AI:** Claude API - called once per journal entry on manual submission
-- **Purchases:** StoreKit 2 for subscriptions and one-time IAP
+- **AI:** Apple Intelligence via the `FoundationModels` framework (on-device, `LanguageModelSession`), called once per journal entry on manual submission. See the Decisions Log - this is behind a protocol-shaped seam (`JudgeService`) so a Claude API judge could be swapped in later without a structural refactor.
+- **Purchases:** StoreKit 2 for subscriptions and one-time IAP (not yet wired - no free/premium split exists yet)
 - **Voice:** Apple Speech framework (on-device transcription before AI call)
+
+---
+
+## Development Commands
+
+There is no CLI package manager (no SwiftPM/CocoaPods deps) - everything is native SwiftUI/SwiftData/FoundationModels. All builds go through `xcodebuild` against the single `Xcel` scheme.
+
+- **Build for the simulator:**
+  ```
+  cd /Users/paulefrim/repos/Xcel/Xcel && xcodebuild -project Xcel.xcodeproj -scheme Xcel -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/XcelDerivedData build
+  ```
+- **Run the app in the simulator** (full install/reset loop): see "Build/run loop (simulator)" in Current Status above - it covers booting the sim, the two-step clean-user reset (`simctl uninstall` + `defaults delete`), and the CoreSimulator "out of date" recovery command.
+- **Tests:** `XcelTests` (Swift Testing, `@Test`) and `XcelUITests` (XCTest UI tests) targets exist but only contain the Xcode-generated stubs - no real test suite has been written yet. Run via `xcodebuild test -project Xcel.xcodeproj -scheme Xcel -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` if/when tests are added; there's no way to run "a single test" meaningfully until real tests exist.
+- **Lint/format:** none configured (no SwiftLint/SwiftFormat config in the repo). Match the surrounding file's style.
 
 ---
 
@@ -91,6 +105,28 @@ See "Roadmap - Game-changing bets" and "Accounts & Sync" below for the full deta
 - `Theme.swift` - `AppSettings` (`@Observable`, injected via `.environment`, persisted to UserDefaults) holds the user's accent color + name. `AccentTheme` enum = 8 neon colors (green, orange, blue, pink, purple, cyan, red, gold). All views read `settings.accent.color`; never hardcode the accent.
 - `BrandingViews.swift` - `WavingTitle` (accent sweeps across the wordmark) and `XtinctBadge` ("POWERED BY XTINCT AI" with subtle chaotic jitter). **XTINCT AI is the company building the app** - keep the attribution.
 - `AccountView` is functional: name, accent color picker, **guide voice picker** (`Guide`), profile photo, adjustable reminder times, a high-stakes-alerts toggle, and entry points to **Season insights** (`InsightsView`) and the **Trophy case** (`TrophyCaseView`). "Go Premium" remains a placeholder row.
+
+---
+
+## Code Architecture
+
+All source lives flat in `Xcel/Xcel/Xcel/` (no subfolders/modules) - one Swift file per concern, usually named `<Thing>View.swift` for UI and `<Thing>Service.swift` for logic. There is no MVVM view-model layer; views own `@State`/`@Query`/`@Environment` directly and call into stateless service structs.
+
+**Data model - `Item.swift` (despite the Xcode-default name, this is the real model file):**
+- `Series` (`@Model`) - one calendar week, `weekStart`/`isWarmup`/recap fields, `@Relationship(deleteRule: .cascade)` to `[Game]`. All series math (`wins`, `losses`, `seriesResult`, `canChallenge`, `wasComeback`, `gamesRemaining`, `allGamesSettled`) is computed on the model itself, not in a service - read these properties rather than recomputing win/loss logic elsewhere.
+- `Game` (`@Model`) - one day: `checklist: [ChecklistItem]`, verdict + one-liner/feedback text, the four box-score `Double` fields, and Challenge Call state (`challenged`/`challengeOverturned`/`challengeStatement`/`challengeRuling`). Time-gating lives here too: `editsLocked` (noon cutoff) and `isLoggingOpen` (6pm-open logging window).
+- `ChecklistItem` (plain `Codable` struct, stored as a `[ChecklistItem]` array property on `Game`, not a separate `@Model`) - one morning task with `isDone`/`note`/`isGameBall`/photo-proof fields. Has a custom `init(from decoder:)` that `decodeIfPresent`-guards every field added after the original three, so old persisted games still decode when new fields are added - **follow this pattern when adding a new `ChecklistItem` field.**
+- `BoxScoreAverages`, `BoxScoreTrend`, `CareerStats` are plain structs computed on demand from `[Game]`/`[Series]` (static `.compute(from:)` factory), not persisted - cheap to recompute, always derived from the SwiftData source of truth.
+- Single `modelContainer(for: Series.self)` registered in `XcelApp.swift`; `Game` and the rest ride along via the cascade relationship, so new `@Model` types need their own container registration if added.
+
+**Services (stateless `struct`s, no protocol layer beyond `JudgeService`'s internal split):**
+- `JudgeService` - the core AI call. Tries `AppleIntelligenceJudge` (real `FoundationModels`/`LanguageModelSession` call, strict JSON-only prompt) first, falls back to `MockJudge` (a deterministic heuristic scorer using `Credibility.isCredible` gibberish detection) if the model is unavailable - this is why the simulator/no-Apple-Intelligence path still produces believable verdicts. `JudgeStance` (home-court/elimination/lockedIn/standard) and `Guide` (tone persona) are both folded into the system prompt as directives; neither should ever change the strictness bar, only framing/voice.
+- Other `*Service` structs (`ChallengeService`, `CoachService`, `PlanService`, `InsightsService`, `RecapService`, `AwardsService`, `FollowThroughService`) follow the same shape: an async `func` that takes model data in, calls `LanguageModelSession` (or a heuristic fallback) and returns a typed result struct. When adding a new AI-backed feature, mirror this pattern rather than introducing a different call style.
+- `NotificationManager` - static scheduling functions (`reschedule`, `scheduleCheckups`, `scheduleStakes`) called from `AppSettings` and `ContentView`; notifications are computed per-day over a 7-day horizon and re-scheduled on every app open with today's actual state, not fired as fixed repeating triggers (see "State-aware" note in Feature Tiers).
+
+**App entry / composition root - `ContentView.swift`:** owns the `@Query` for all `Series`, derives `currentSeries` (this week's, by Monday), and on `.onAppear` runs the startup sequence every launch must preserve: `ensureCurrentSeries()` (creates the week + 7 `Game`s if missing, including warm-up detection for mid-week joiners) → `processMissedGames()` (auto-loss for past unjudged days) → `settings.setUpNotifications(...)` → `refreshCheckups()`. The cold-open `LaunchView` overlays everything (including onboarding) via `zIndex`, and onboarding is deliberately held back until the launch splash dismisses (see the comment above the `fullScreenCover`) - don't reorder these without preserving that splash → onboarding → home sequence.
+
+**Theming - `Theme.swift`:** `AppSettings` is the single `@Observable` settings object injected once via `.environment(settings)` in `XcelApp`; every persisted user preference (accent, guide, arena theme, recurring tasks, notification times, onboarding flag) lives here with a `didSet` that writes straight to `UserDefaults` (profile image is the one exception, written to a file in Documents since it's too large for defaults). `ArenaTheme` provides the cosmetic backdrop/line/glow/surface colors consumed by `CourtBackground`; `AccentTheme` is the user's accent pick and is orthogonal to the arena theme - never conflate the two.
 
 ---
 

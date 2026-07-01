@@ -6,10 +6,10 @@ struct HomeView: View {
     let stats: CareerStats
     let postseason: Postseason
     @Environment(AppSettings.self) private var settings
-    @Environment(\.openURL) private var openURL
 
     @State private var showAccount = false
     @State private var showInfo = false
+    @State private var showFeedback = false
     @State private var quote = Quotes.random()
 
     private var accent: Color { settings.accent.color }
@@ -48,6 +48,7 @@ struct HomeView: View {
         .onAppear { quote = Quotes.random() }
         .sheet(isPresented: $showAccount) { AccountView() }
         .sheet(isPresented: $showInfo) { InfoView() }
+        .sheet(isPresented: $showFeedback) { FeedbackSheet(accent: accent) }
     }
 
     // MARK: Top - wordmark + account avatar
@@ -216,7 +217,7 @@ struct HomeView: View {
     // MARK: Bottom - feedback
 
     private var bottomBar: some View {
-        Button { openFeedback() } label: {
+        Button { showFeedback = true } label: {
             HStack(spacing: 6) {
                 Image(systemName: "paperplane")
                 Text("Send feedback")
@@ -225,22 +226,6 @@ struct HomeView: View {
             .foregroundStyle(Color(white: 0.4))
         }
         .padding(.bottom, 32)
-    }
-
-    private func openFeedback() {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
-        let build = info?["CFBundleVersion"] as? String ?? "?"
-        let body = "\n\n\n- - -\nXcel \(version) (\(build))\niOS \(UIDevice.current.systemVersion) · \(UIDevice.current.model)"
-
-        var comps = URLComponents()
-        comps.scheme = "mailto"
-        comps.path = "xtinctai@outlook.com"
-        comps.queryItems = [
-            URLQueryItem(name: "subject", value: "Xcel Feedback"),
-            URLQueryItem(name: "body", value: body),
-        ]
-        if let url = comps.url { openURL(url) }
     }
 
     private func statusHeadline(_ series: Series) -> String {
