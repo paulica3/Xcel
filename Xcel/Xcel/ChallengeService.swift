@@ -196,6 +196,7 @@ struct ChallengeSheet: View {
                 .animation(.easeInOut(duration: 0.15), value: ready)
             }
         }
+        .dismissKeyboardOnScroll()
     }
 
     private var header: some View {

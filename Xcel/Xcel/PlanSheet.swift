@@ -45,6 +45,7 @@ struct PlanSheet: View {
                 if !drafts.isEmpty { addButton }
             }
         }
+        .dismissKeyboardOnScroll()
     }
 
     private var header: some View {

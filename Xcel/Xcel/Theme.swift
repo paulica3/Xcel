@@ -7,6 +7,18 @@ extension Color {
     static let eliminationRed = Color(red: 1.0, green: 0.23, blue: 0.19)
 }
 
+extension View {
+    // Multi-line text fields (`TextField(..., axis: .vertical)`) treat Return
+    // as "add a line," not "submit" - with no other affordance, the keyboard
+    // has no way to close. A keyboard-toolbar "Done" button works but the
+    // system accessory bar is a fixed light-gray strip that clashes with the
+    // arena-black theme, so instead: drag down on the scroll view to dismiss,
+    // same as Messages/Mail - no extra chrome needed.
+    func dismissKeyboardOnScroll() -> some View {
+        scrollDismissesKeyboard(.interactively)
+    }
+}
+
 // A top-down basketball court etched faintly into the arena floor. Used as the
 // base layer on the main screens. Lines are only a touch lighter than the black
 // backdrop so they read as court markings without lifting the dark aesthetic.

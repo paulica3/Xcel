@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Last updated:** 2026-07-01
 
-**Stage:** *Build-everything-first, polishing toward the TestFlight test build.* The full feature set (see "Feature Tiers" - every ✅) is built on `main` and building/running clean on the iPhone 17 Pro simulator. We are in a UX-polish loop: the developer runs the sim, gives targeted feedback, we fix + rebuild + reinstall clean, repeat. No free/premium split yet - that comes *after* tester feedback.
+**Stage:** *Build-everything-first, polishing toward the TestFlight test build.* The full feature set (see "Feature Tiers" - every ✅) is built on `main` and building/running clean on the iPhone 17 Pro simulator. We are in a UX-polish loop: the developer runs the sim, gives targeted feedback, we fix + rebuild + reinstall clean, repeat. No free/premium split yet - that comes *after* tester feedback. **The developer has purchased the $99/yr Apple Developer Program (Individual) and is waiting on enrollment approval.** Once approved, remaining work to get a build in front of friends is almost entirely App Store Connect/TestFlight setup (signing team, App ID, privacy policy page, archive + upload, add External Testers) - not new features. See "Distribution Path" for the exact steps.
 
 **Build/run loop (simulator):**
 - Build: `cd /Users/paulefrim/repos/Xcel/Xcel && xcodebuild -project Xcel.xcodeproj -scheme Xcel -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/XcelDerivedData build`
@@ -30,16 +30,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - SwiftData note: changing a *stored property's type* is not a lightweight migration - it needs a clean install (fine here, since every test is a fresh install).
 - All views read `settings.accent.color`; never hardcode the accent.
 
-**Recently shipped (most recent first):** center-court "wave X" (accent-colored, gentle breathing, NBA-midcourt-logo style) + subtle animated film grain on `CourtBackground`; expandable evening proof/notes fields (grow to ~14 lines for long dictated entries); game-history horizontal-drift clamp; fresher/less-repetitive coach's notes; AI plan generator fidelity fix; multi-line wrapping task fields; onboarding "Judge" icon fix; arena themes + Appearance picker; AI plan generator; monthly awards; decimal box score; cold-open launch scene; in-app camera + PHAsset photo verification; profile cropper; smart (state-aware) notifications.
+**Recently shipped (most recent first):** in-app feedback screen replacing the bare mailto link - pick a category (Bug / UI-UX / Feature idea / AI judge / Other), write against a category-tailored prompt, sent through an in-app `MFMailComposeViewController` (never jumps out to Mail.app; falls back to `mailto:` only if no mail account is configured) (`FeedbackSheet.swift`, wired from `HomeView`'s "Send feedback"); automated build numbering - `VERSIONING_SYSTEM = apple-generic` on the Xcel target unlocks `agvtool`, paired with an Archive-scheme pre-action script (`agvtool new-version -all "$(date -u +%Y%m%d%H%M)"`) so `CFBundleVersion` auto-stamps to a UTC timestamp on every Archive with zero manual edits; `MARKETING_VERSION` (currently `1.0`) stays a manual/product decision; center-court "wave X" (accent-colored, gentle breathing, NBA-midcourt-logo style) + subtle animated film grain on `CourtBackground`; expandable evening proof/notes fields (grow to ~14 lines for long dictated entries); game-history horizontal-drift clamp; fresher/less-repetitive coach's notes; AI plan generator fidelity fix; multi-line wrapping task fields; onboarding "Judge" icon fix; arena themes + Appearance picker; AI plan generator; monthly awards; decimal box score; cold-open launch scene; in-app camera + PHAsset photo verification; profile cropper; smart (state-aware) notifications.
 
 **Next possible steps (nothing here is committed - confirm with the developer before starting):**
-1. **Finish the polish loop → cut a TestFlight build.** Needs the paid Apple Developer Program ($99/yr) for TestFlight (up to 100 testers). This is the immediate goal.
+1. **Get through Dev Program enrollment approval, then finish the App Store Connect/TestFlight setup** (signing team switch, App ID registration, privacy policy page, archive + upload, External Testers group for friends). This is the immediate goal - see "Distribution Path".
 2. **Gather tester feedback → decide the free/premium split** on the `premium` branch (the whole point of build-everything-first). Don't split before feedback.
 3. **Accounts & Sync (Option B: Sign in with Apple + Supabase)** - the prerequisite for every social feature. Build behind a `SyncService` protocol so the local-only build keeps working.
-4. **Leagues / rivalry weeks** - the growth engine; depends on #3.
-5. **Blocked on the Dev Program:** HealthKit auto-verification, Widgets + Live Activity, Apple Watch companion (need entitlements / new extension targets - don't hand-wire via CLI).
+4. **Leagues / rivalry weeks / leaderboards** - the growth engine; depends on #3. A concrete design plan (data model, sync scope, sequencing) is written up in "Leagues & Leaderboards - Design Plan" below, ready to start once accounts land - not started yet.
+5. **Blocked on nothing now (Dev Program is enrolled/pending), but sequenced for later per the Roadmap:** HealthKit auto-verification, Widgets + Live Activity, Apple Watch companion. Don't start these opportunistically just because the entitlements are now available - the roadmap deliberately puts them after leagues, once the core loop + social loop are validated.
 
-See "Roadmap - Game-changing bets" and "Accounts & Sync" below for the full detail on 3-5.
+See "Roadmap - Game-changing bets", "Accounts & Sync", and "Leagues & Leaderboards - Design Plan" below for the full detail on 3-5.
 
 ---
 
@@ -143,6 +143,7 @@ These are **tier *candidates*, not a committed split.** During the build-everyth
 - ✅ Challenge Call - one contested loss per series (NBA coach's-challenge style). User makes a case (own the mistake + a concrete fix plan); the AI judge reviews and either overturns (**flips the L into a W**, the call goes the player's way like a real NBA challenge) or denies it. One shot, win or lose, so it's not a weekly free pass. Replaced the old "Injured Reserve" free-excuse. (`ChallengeService` / `ChallengeSheet`, `Game.challenged`/`challengeOverturned`/`challengeRuling`, `Series.canChallenge`; a granted challenge sets `Game.verdict = .win`.)
 - ✅ Challenge follow-through accountability - a won challenge is a promise. The **next** series, once complete, is judged (on-device AI, heuristic fallback) against the plan the user pledged; if they didn't live it out, the Challenge Call is **locked for the following series** - earn it back by actually doing what you said. (`FollowThroughService`, `Series.followUpEvaluated`/`followUpHonored`/`overturnedChallengePlan`/`isComplete`; evaluated lazily on app open in `ContentView.task`, lockout surfaced in `GameResultView`.)
 - ✅ Recurring daily tasks - user sets staple tasks (e.g. "20 pushups after waking up") in Account; they auto-pre-fill every new day's morning plan and stay fully editable. (`AppSettings.recurringTasks` in UserDefaults, `RecurringTasksView`, pre-filled in `EntryView.onAppear`.)
+- ✅ In-app feedback - "Send feedback" on Home opens a categorized (Bug / UI-UX / Feature idea / AI judge / Other) writing screen instead of a bare mailto link; sends via an in-app Mail compose sheet to `xtinctai@outlook.com`, falling back to `mailto:` only if no mail account is configured. (`FeedbackSheet.swift`.)
 
 ### Premium candidates (built on `main` now, may become paid later)
 - ✅ Season stats on Home (all-time record, streak, best comeback)
@@ -173,9 +174,9 @@ These need paid-program capabilities/entitlements (and, for widgets, a new embed
 - **HealthKit / screen-time auto-verification** - confirm tasks (workout, sleep, screen time) from HealthKit instead of pure self-report. Needs the HealthKit entitlement + usage strings + provisioning.
 - **Widgets + Live Activity** - today's scoreline on Home screen / Dynamic Island ("Game 6 tonight"). Needs a WidgetKit app-extension target + App Group entitlement (shared SwiftData/UserDefaults) + ActivityKit.
 
-### League candidates (need accounts + backend - see "Accounts & Sync")
-- **Leagues / Conferences with friends** - friends form a conference, everyone runs their own weekly series, a shared standings board shows each member's W-L for the week. This is the primary viral/growth loop and the main reason we need real accounts.
-- **Head-to-head rivalry weeks** - pair two members for the week ("you vs. Marcus, both 3-2, Game 7 tonight"). Social accountability is the single biggest retention driver.
+### League candidates (need accounts + backend - see "Accounts & Sync" and "Leagues & Leaderboards - Design Plan")
+- **Leagues / Conferences with friends** - friends form a conference, everyone runs their own weekly series, a shared standings board shows each member's W-L for the week. This is the primary viral/growth loop and the main reason we need real accounts. Full design plan (data model, sync scope, sequencing) written up in "Leagues & Leaderboards - Design Plan" below - not started yet.
+- **Head-to-head rivalry weeks** - pair two members for the week ("you vs. Marcus, both 3-2, Game 7 tonight"). Social accountability is the single biggest retention driver. Sequenced *after* the basic standings MVP per the design plan.
 - Shared leaderboard / rivalry tracking
 
 ### Cosmetics (one-time IAP later; all unlocked in the testing build)
@@ -191,7 +192,7 @@ These need paid-program capabilities/entitlements (and, for widgets, a new embed
 
 These are the big swings we want after the testing build validates the core loop. They are intentionally ambitious. Most depend on **Accounts & Sync** (below) and/or the paid Apple Developer Program. Priority order is roughly top-to-bottom.
 
-- **Leagues / Conferences with friends** - see "League candidates" above. The growth engine. Depends on accounts + backend.
+- **Leagues / Conferences with friends** - see "League candidates" above and the full "Leagues & Leaderboards - Design Plan" section. The growth engine. Depends on accounts + backend.
 - **The Finals / Playoff bracket** - after N regular-season weeks, top performers in a league enter a single-elimination bracket. Gives the whole app a *season arc* with a real ending instead of an endless treadmill. Big emotional payoff and a natural premium hook. Depends on leagues.
 - **Trade deadline / Power-ups** - earn currency from wins; spend on a "timeout" (one excused make-up day) or a "buzzer beater" (re-judge one borderline L per series). Light game economy so wins accrue to something. (Injured Reserve is the seed of this.)
 - **AI season-long GM with memory** - the judge currently scores per-day. Give it longitudinal memory so the *daily* verdict can reference patterns ("third Monday in a row you skipped the gym - that's your weak side"). The `InsightsService` pattern engine already half-exists; wire its findings into the daily verdict to make the judge feel scary-smart.
@@ -221,6 +222,39 @@ These are the big swings we want after the testing build validates the core loop
 - **Prerequisite:** paid Apple Developer Program (Sign in with Apple entitlement) + a privacy policy (we now collect/store user data off-device).
 
 > Implementation note: build this behind a `SyncService` protocol the same way the judge is abstracted, so the local-only build keeps working and the backend can be swapped/mocked. No view should talk to Supabase directly.
+
+---
+
+## Leagues & Leaderboards - Design Plan
+
+**Status: design only, nothing built yet.** Sequenced to start once Accounts & Sync (above) lands - don't begin the client code before Sign in with Apple + Supabase exist, since leagues have no meaning without a stable cross-device user id. This section exists so that work starts from an intentional shape instead of ad-hoc once accounts are ready.
+
+**Design goal:** friends see each other's *competition*, not each other's journal. Keep the private, on-device judging loop's credibility intact - raw entry text, photos, and verdict feedback never leave the device. Only small, pre-computed summary numbers sync.
+
+**MVP scope (v1 - deliberately resist building more than this first):**
+- A **League** ("Conference") is just a named group with an invite code/link; anyone with the code joins.
+- Everyone keeps running their own independent weekly series exactly as today - a league adds a shared *read-only standings screen*, it never changes or merges anyone's series/game logic.
+- **Standings view:** one row per member showing this week's W-L, current streak, and (opt-in) box-score overall - sourced from a small synced summary, not raw entries.
+- No chat, no rivalry pairing, no bracket in v1. Ship the standings board, see if people actually check it, then decide whether pairing/brackets earn their complexity.
+
+**Data model (Postgres/Supabase, additive to the Accounts & Sync schema):**
+- `users` - id = the Supabase auth uid tied to Sign in with Apple, plus `display_name`, `accent`, `avatar_url`.
+- `leagues` - `id`, `name`, `invite_code`, `owner_id`, `created_at`.
+- `league_members` - `league_id`, `user_id`, `joined_at`. RLS: a user can insert their own membership row (join via code); can read all rows for leagues they belong to.
+- `weekly_standings` - `user_id`, `week_start`, `wins`, `losses`, `series_result`, `box_overall` (nullable, opt-in), `updated_at`. One row per user per week, upserted by that user's own device after each judged game. RLS: a user can only write their own row; can only read rows for users who share a league with them.
+
+**Client architecture (mirrors existing patterns - nothing novel):**
+- A `LeagueService` struct shaped like the existing `AwardsService`/`InsightsService`: fetch standings, create/join a league, push this week's summary row.
+- Sits behind the `SyncService` protocol from "Accounts & Sync" - `LeagueService` calls through `SyncService`, never talks to Supabase directly from a view, so the sync backend stays swappable/mockable.
+- Local cache of the last-fetched standings so the league screen still shows a (stale-but-present) board offline - same "never block the daily ritual on network" principle as the rest of the app.
+- Push the local summary after a `Game` is judged and again on `ContentView.onAppear`, mirroring how `NotificationManager` already recomputes state on every app open.
+
+**Only after the MVP ships and shows real usage:**
+1. **Head-to-head rivalry weeks** - pair two members ("you vs. Marcus, both 3-2, Game 7 tonight"); needs just a pairing rule (round robin is simplest) and a dedicated push notification.
+2. **The Finals / playoff bracket** - top members from `weekly_standings` history enter a single-elimination bracket; a read-only view over data that already exists, no new gameplay logic.
+3. League-champion cosmetics/badges - reuse the existing Trophy Case pattern rather than inventing a new one.
+
+**Deliberately out of scope (avoid overbuilding):** live chat/comments, public or global leaderboards (friends-only leagues only), server-side judging (the AI judge stays on-device exactly as today - leagues only add a sync + display layer on top), and tournament-grade anti-cheat (trusting device-computed verdicts is good enough for a friends league).
 
 ---
 
@@ -277,5 +311,5 @@ All architecture decisions have been locked in. Do not re-open these without the
 ## Distribution Path
 
 - **Personal use:** Free Apple ID + Xcode (7-day cert re-sign) or AltStore/Sideloadly
-- **Friends:** $99/yr Apple Developer Program → TestFlight (up to 100 testers, no App Store review)
+- **Friends:** $99/yr Apple Developer Program → TestFlight. **Status: enrolled (Individual), pending Apple's approval** (paid, not yet approved as of this writing). Once approved: (1) switch the Xcel target's signing team in Xcode off "Personal Team", (2) confirm/register the `com.paulefrim.Xcel` App ID under the paid team, (3) create the app record in App Store Connect, (4) publish a one-page privacy policy and add its URL (required even for TestFlight-only, since the app now collects device/feedback data via `FeedbackSheet`), (5) `Product → Archive` in Xcode (this is what triggers the automated build-number stamp) → Distribute App → App Store Connect → Upload, (6) add friends as **External Testers** (email or public link, up to 10,000, one lightweight Beta App Review ~24h) rather than Internal Testers (which requires giving them App Store Connect team access).
 - **Public/monetized:** Full App Store submission + privacy policy required before any IAP/subscription features ship

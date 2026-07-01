@@ -77,6 +77,7 @@ struct FeedbackSheet: View {
                 sendButton
             }
         }
+        .dismissKeyboardOnScroll()
         .sheet(isPresented: $showMailCompose) {
             MailComposeView(subject: mailSubject, body: mailBody, recipient: "xtinctai@outlook.com") {
                 dismiss()

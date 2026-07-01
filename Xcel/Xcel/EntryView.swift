@@ -33,6 +33,7 @@ struct EntryView: View {
             }
         }
         .navigationBarHidden(true)
+        .dismissKeyboardOnScroll()
         .navigationDestination(isPresented: $goToSubmit) {
             SubmitView(game: game, onComplete: onComplete)
         }
