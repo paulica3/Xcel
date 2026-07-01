@@ -29,7 +29,8 @@ struct GameResultView: View {
         ZStack {
             Color.arenaBlack.ignoresSafeArea()
 
-            ScrollView {
+            GeometryReader { geo in
+              ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     topBar
 
@@ -69,7 +70,11 @@ struct GameResultView: View {
                         labeledCard("COACH'S NOTES", game.verdictFeedback)
                     }
                 }
+                // Hard-clamp content to the viewport width so a greedy child can't
+                // make the vertical ScrollView pan sideways (same fix as Account).
                 .padding(24)
+                .frame(width: geo.size.width, alignment: .leading)
+              }
             }
         }
         .navigationBarHidden(true)
@@ -289,7 +294,8 @@ struct SeriesDetailView: View {
         ZStack {
             Color.arenaBlack.ignoresSafeArea()
 
-            ScrollView {
+            GeometryReader { geo in
+              ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
                         Button { dismiss() } label: {
@@ -318,6 +324,8 @@ struct SeriesDetailView: View {
                     }
                 }
                 .padding(24)
+                .frame(width: geo.size.width, alignment: .leading)
+              }
             }
         }
         .navigationBarHidden(true)

@@ -153,8 +153,8 @@ struct CourtLines: Shape {
             // Three-point line: two straight corners running square off the
             // baseline, joined by an arc centered on the hoop. cornerHalf < tpR so
             // the corners sit on the circle and the arc meets them cleanly.
-            let tpR = court.width * 0.46
-            let cornerHalf = court.width * 0.40
+            let tpR = court.width * 0.52
+            let cornerHalf = court.width * 0.42
             let off = (tpR * tpR - cornerHalf * cornerHalf).squareRoot()
             let jY = hoopY + dir * off
 

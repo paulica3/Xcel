@@ -151,8 +151,10 @@ private struct AppleIntelligenceJudge {
     - A checkbox ticked with no real proof earns no credit. Do not reward a checkmark on its own.
     - If most of the proof is empty, vague, or nonsense, the day is a LOSS regardless of how many boxes were checked.
 
+    WRITE IT FRESH EVERY TIME. This is critical: vary your sentence structure, length, opening, and word choice from one day to the next. Do NOT follow a fixed template or recycle stock phrases across verdicts - two different days should never read like they were filled into the same mould. React to THIS day's specific tasks and proof, not a formula.
+
     Decide the day: W (win) or L (loss), then write:
-    - oneLiner: one punchy broadcast-style sentence delivering the verdict, framed within the series.
+    - oneLiner: one punchy broadcast-style sentence delivering the verdict, framed within the series. Open it a different way each time.
     - feedback: 2-4 sentences of coach's notes. ALWAYS quote or name the actual tasks and proof - never speak in generic terms.
       • On a WIN: make the praise EARNED and SPECIFIC. Name the exact task(s) they executed and what in their proof sold it. Call out the single strongest moment of the day. Then give one concrete way to push further tomorrow. BANNED - never write empty filler like "you showed up", "good job", "keep it up", "nice work", "stay consistent", "build momentum". If you can't point to something specific they did, it wasn't a win.
       • On a LOSS: name the weak/nonsense/empty proof directly and the one task to protect tomorrow.
@@ -338,24 +340,30 @@ private struct MockJudge {
     }
 
     // Persona delivery for the offline judge (the on-device AI handles its own
-    // voice via the prompt). Keeps the analysis, changes only how it lands.
+    // voice via the prompt). Keeps the analysis, changes only how it lands. Each
+    // sign-off is picked at random from a pool so back-to-back days don't read
+    // identically.
     private static func styleLine(_ g: Guide, win: Bool, base: String) -> String {
+        let pool: [String]
         switch (g, win) {
-        case (.ant, true):      return base + " That's hooping, bro - on God. 🔥"
-        case (.ant, false):     return base + " Nah, that was soft. Lock in."
-        case (.maestro, true):  return base + " Good basketball, my friend - the little things added up."
-        case (.maestro, false): return base + " It's okay, my friend. We fix it tomorrow. Simple."
-        case (.king, true):     return base + " That's the standard, young king. Stack it."
-        case (.king, false):    return base + " Tough one - but it's a long season. Run it back."
+        case (.ant, true):      pool = [" That's hooping, bro - on God. 🔥", " Too easy. We different.", " Certified bucket. Keep cooking.", " That's dawg work. On God."]
+        case (.ant, false):     pool = [" Nah, that was soft. Lock in.", " We better than that, bro.", " That ain't it. Tighten up.", " I need more outta you."]
+        case (.maestro, true):  pool = [" Good basketball, my friend.", " The little things added up.", " Simple, clean, effective.", " That's how you move the game."]
+        case (.maestro, false): pool = [" It's okay, my friend. We fix it.", " No panic. Tomorrow we adjust.", " We lost the possession, not the game.", " Small mistakes, easy corrections."]
+        case (.king, true):     pool = [" That's the standard, young king.", " Championship habits right there.", " Stack it and keep climbing.", " That's the blueprint."]
+        case (.king, false):    pool = [" It's a long season. Run it back.", " Even the greats drop games.", " Learn it and flip the page.", " Adversity's part of the arc."]
         }
+        return base + (pool.randomElement() ?? "")
     }
 
     private static func styleFeedback(_ g: Guide, win: Bool, base: String) -> String {
+        let pool: [String]
         switch g {
-        case .ant:     return base + (win ? " Don't get comfortable, bro." : " I know you got more than that.")
-        case .maestro: return base + " Basketball is a team game - take care of the small stuff first."
-        case .king:    return base + " Longevity is the goal. One day at a time."
+        case .ant:     pool = win ? [" Don't get comfortable, bro.", " Now go do it again."] : [" I know you got more than that.", " Prove me wrong tomorrow."]
+        case .maestro: pool = [" Take care of the small stuff first.", " Basketball is a team game.", " Patience, my friend - it compounds."]
+        case .king:    pool = [" Longevity is the goal.", " One day at a time.", " The long game always wins."]
         }
+        return base + (pool.randomElement() ?? "")
     }
 }
 

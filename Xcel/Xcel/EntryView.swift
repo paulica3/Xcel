@@ -97,15 +97,14 @@ struct EntryView: View {
         VStack(spacing: 10) {
             // The add field stays pinned at the top so it - and freshly added
             // tasks right below it - remain visible even with the keyboard up.
-            HStack(spacing: 10) {
-                TextField("Add a task…", text: $newItem)
+            HStack(alignment: .bottom, spacing: 10) {
+                TextField("Add a task…", text: $newItem, axis: .vertical)
                     .font(.system(size: 16))
                     .foregroundStyle(.white)
+                    .lineLimit(1...5)
                     .padding(14)
                     .background(Color(white: 0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .submitLabel(.done)
-                    .onSubmit(addItem)
                 Button(action: addItem) {
                     Image(systemName: "plus")
                         .font(.system(size: 18, weight: .bold))
@@ -194,9 +193,10 @@ struct EntryView: View {
                     .foregroundStyle(item.wrappedValue.isGameBall ? accent : accent.opacity(0.5))
             }
             .buttonStyle(.plain)
-            TextField("Task", text: item.title)
+            TextField("Task", text: item.title, axis: .vertical)
                 .font(.system(size: 16))
                 .foregroundStyle(.white)
+                .lineLimit(1...6)
             Button {
                 items.removeAll { $0.id == item.wrappedValue.id }
             } label: {
@@ -325,9 +325,10 @@ struct EntryView: View {
                                 Image(systemName: "circle")
                                     .font(.system(size: 22))
                                     .foregroundStyle(accent.opacity(0.7))
-                                TextField("Task", text: $item.title)
+                                TextField("Task", text: $item.title, axis: .vertical)
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundStyle(.white)
+                                    .lineLimit(1...6)
                                 Button {
                                     items.removeAll { $0.id == item.id }
                                 } label: {
@@ -383,14 +384,14 @@ struct EntryView: View {
                 }
 
                 if editingPlan {
-                    HStack(spacing: 10) {
-                        TextField("Add a task…", text: $eveningNewItem)
+                    HStack(alignment: .bottom, spacing: 10) {
+                        TextField("Add a task…", text: $eveningNewItem, axis: .vertical)
                             .font(.system(size: 16))
                             .foregroundStyle(.white)
+                            .lineLimit(1...5)
                             .padding(14)
                             .background(Color(white: 0.08))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .onSubmit(addEveningItem)
                         Button(action: addEveningItem) {
                             Image(systemName: "plus")
                                 .font(.system(size: 18, weight: .bold))

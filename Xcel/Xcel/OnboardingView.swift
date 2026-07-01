@@ -19,7 +19,7 @@ struct OnboardingView: View {
               kicker: "THE FORMAT",
               title: "Your week is a playoff series",
               body: "Seven games, Monday to Sunday. Each day is one game. Win 4 and you take the series."),
-        Slide(icon: "gavel.fill",
+        Slide(icon: "building.columns.fill",
               kicker: "THE JUDGE",
               title: "Every night, you get a verdict",
               body: "Set a game plan in the morning - tap one task as your game ball, the one that matters most. The Judge calls the day a W or an L. Tough but fair."),

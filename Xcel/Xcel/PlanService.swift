@@ -5,7 +5,7 @@ import FoundationModels
 // into a concrete, provable checklist for the day. Prefers the on-device model;
 // falls back to a deterministic split when Apple Intelligence isn't available.
 enum PlanService {
-    static func generate(from intention: String, count: Int = 4) async -> [String] {
+    static func generate(from intention: String, count: Int = 6) async -> [String] {
         let goal = intention.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !goal.isEmpty else { return [] }
 
@@ -22,13 +22,18 @@ enum PlanService {
         guard case .available = model.availability else { throw JudgeError.modelUnavailable }
 
         let instructions = """
-        You are a sharp day-planning coach. The user gives you a short intention for today.
-        Turn it into \(count) concrete, specific, PROVABLE tasks they could check off tonight.
-        Rules:
-        - Each task gets a number, a duration, or a clear finish line (e.g. "Read 20 pages", "30-min run", "Inbox to zero").
-        - Make them realistic for ONE day and directly serve the intention.
-        - Keep each task under 8 words. No vague verbs like "be productive" or "work on".
-        - Return between 3 and \(count) tasks.
+        You turn a person's short intention for today into a clean, checkable to-do list.
+
+        MOST IMPORTANT - respect what they actually said:
+        - If they already listed several distinct tasks, return EACH ONE as its own item, in their order. Do NOT split a single coherent task into two (e.g. "cook dinner and clean up" if they meant it as one errand stays one item), and do NOT merge two different tasks into one.
+        - If they gave one broad goal with no clear sub-tasks, break it into 3-5 concrete steps that serve it.
+        - Never invent tasks they didn't imply. Prefer fidelity to their intention over adding filler.
+
+        Then make each item provable:
+        - Give it a number, a duration, or a clear finish line where it helps (e.g. "Read 20 pages", "30-min run", "Inbox to zero").
+        - Keep each item tight - under 8 words. No vague verbs like "be productive" or "work on stuff".
+
+        Return between 3 and \(count) items total.
 
         Respond ONLY with valid JSON, nothing else - an array of strings:
         ["task one","task two","task three"]
@@ -50,12 +55,14 @@ enum PlanService {
     // MARK: - Heuristic fallback
 
     private static func heuristic(_ goal: String, count: Int) -> [String] {
-        // If the intention already lists several things, split it into tasks.
+        // Split ONLY on strong list separators (commas, semicolons, newlines,
+        // bullets, numbered markers, " then "). Deliberately NOT on " and " -
+        // that wrongly chops single tasks like "rest and recover" in two.
         let separators = CharacterSet(charactersIn: ",;\n•")
         var parts = goal
+            .replacingOccurrences(of: " then ", with: ",")
             .components(separatedBy: separators)
-            .flatMap { $0.components(separatedBy: " and ") }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { stripListMarker($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.count >= 2 }
             .map { (s: String) -> String in
                 guard let first = s.first else { return s }
@@ -74,5 +81,14 @@ enum PlanService {
             "Review \(g) progress tonight",
         ]
         return Array(parts.prefix(count))
+    }
+
+    // Drop a leading list marker like "1.", "2)", or "- " from a split fragment.
+    private static func stripListMarker(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: .whitespaces)
+        while let f = t.first, f == "-" || f == "*" || f.isNumber || f == "." || f == ")" {
+            t.removeFirst()
+        }
+        return t
     }
 }
