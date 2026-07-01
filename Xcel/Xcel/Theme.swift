@@ -29,8 +29,73 @@ struct CourtBackground: View {
             }
             CourtLines()
                 .stroke(t.line, lineWidth: lineWidth)
+
+            // Center-court X, like an NBA team's midcourt logo. Accent-colored,
+            // very faint, gently breathing in and out on a slow wave. No harsh
+            // glow - just a soft ambient swell.
+            WaveX(color: settings.accent.color)
+
+            // A whisper of animated film grain over the whole field so the
+            // court feels alive/broadcast, not flat. Deliberately gentle.
+            GrainOverlay()
         }
         .ignoresSafeArea()
+    }
+}
+
+// A large "X" wordmark in the accent color that gently breathes on a slow
+// sine-like wave. Low opacity and a small soft edge - ambient, not a glow bomb.
+private struct WaveX: View {
+    var color: Color
+    @State private var swell = false
+
+    var body: some View {
+        Text("X")
+            .font(.system(size: 260, weight: .black))
+            .foregroundStyle(color)
+            .blur(radius: 6)
+            .opacity(swell ? 0.15 : 0.08)
+            .scaleEffect(swell ? 1.025 : 1.0)
+            .animation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true), value: swell)
+            .onAppear { swell = true }
+            .allowsHitTesting(false)
+    }
+}
+
+// Gentle animated film grain: a sparse field of faint specks re-seeded a few
+// times a second so it shimmers subtly without ever being noisy.
+private struct GrainOverlay: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { timeline in
+            Canvas { ctx, size in
+                let tick = UInt64(timeline.date.timeIntervalSinceReferenceDate * 10)
+                var rng = SeededRNG(seed: tick)
+                let count = 700
+                for _ in 0..<count {
+                    let x = Double.random(in: 0..<max(size.width, 1), using: &rng)
+                    let y = Double.random(in: 0..<max(size.height, 1), using: &rng)
+                    let a = Double.random(in: 0.0..<0.04, using: &rng)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: x, y: y, width: 1.1, height: 1.1)),
+                        with: .color(.white.opacity(a))
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// Tiny deterministic xorshift RNG so each frame's grain is stable within the
+// frame but shifts frame-to-frame.
+private struct SeededRNG: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed == 0 ? 0x9E3779B97F4A7C15 : seed }
+    mutating func next() -> UInt64 {
+        state ^= state << 13
+        state ^= state >> 7
+        state ^= state << 17
+        return state
     }
 }
 

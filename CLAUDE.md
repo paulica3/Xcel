@@ -10,6 +10,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Current Status (read this first)
+
+> Keep this section current at the end of each working session so a fresh `/init` immediately knows where we are and what's next. Update the date and the bullets whenever the state materially changes.
+
+**Last updated:** 2026-07-01
+
+**Stage:** *Build-everything-first, polishing toward the TestFlight test build.* The full feature set (see "Feature Tiers" - every ✅) is built on `main` and building/running clean on the iPhone 17 Pro simulator. We are in a UX-polish loop: the developer runs the sim, gives targeted feedback, we fix + rebuild + reinstall clean, repeat. No free/premium split yet - that comes *after* tester feedback.
+
+**Build/run loop (simulator):**
+- Build: `cd /Users/paulefrim/repos/Xcel/Xcel && xcodebuild -project Xcel.xcodeproj -scheme Xcel -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/XcelDerivedData build`
+- Sim UDID `B83E6C73-F7F3-43EB-B1AF-7CD13AC5CC4B`, bundle `com.paulefrim.Xcel`. Boot with `xcrun simctl bootstatus "$UDID" -b` before install commands (avoids the code-405 "Shutdown" error).
+- **Clean new-user reset requires two steps:** `simctl uninstall` alone leaves UserDefaults cached in cfprefsd, so onboarding won't re-trigger. Also run `xcrun simctl spawn "$UDID" defaults delete com.paulefrim.Xcel`, then install + launch.
+- If CoreSimulator throws "out of date": `killall -9 com.apple.CoreSimulator.CoreSimulatorService`, then retry.
+
+**Working conventions the developer expects:**
+- **Never `git commit`/push unless explicitly asked.** Provide the commit message as text only, in a `git commit -F- <<'EOF' … EOF` block ending with the `Co-Authored-By: Claude Opus 4.8` trailer.
+- Audio assets stay royalty-free (arena crowd/buzzer); never ship meme clips.
+- SwiftData note: changing a *stored property's type* is not a lightweight migration - it needs a clean install (fine here, since every test is a fresh install).
+- All views read `settings.accent.color`; never hardcode the accent.
+
+**Recently shipped (most recent first):** center-court "wave X" (accent-colored, gentle breathing, NBA-midcourt-logo style) + subtle animated film grain on `CourtBackground`; expandable evening proof/notes fields (grow to ~14 lines for long dictated entries); game-history horizontal-drift clamp; fresher/less-repetitive coach's notes; AI plan generator fidelity fix; multi-line wrapping task fields; onboarding "Judge" icon fix; arena themes + Appearance picker; AI plan generator; monthly awards; decimal box score; cold-open launch scene; in-app camera + PHAsset photo verification; profile cropper; smart (state-aware) notifications.
+
+**Next possible steps (nothing here is committed - confirm with the developer before starting):**
+1. **Finish the polish loop → cut a TestFlight build.** Needs the paid Apple Developer Program ($99/yr) for TestFlight (up to 100 testers). This is the immediate goal.
+2. **Gather tester feedback → decide the free/premium split** on the `premium` branch (the whole point of build-everything-first). Don't split before feedback.
+3. **Accounts & Sync (Option B: Sign in with Apple + Supabase)** - the prerequisite for every social feature. Build behind a `SyncService` protocol so the local-only build keeps working.
+4. **Leagues / rivalry weeks** - the growth engine; depends on #3.
+5. **Blocked on the Dev Program:** HealthKit auto-verification, Widgets + Live Activity, Apple Watch companion (need entitlements / new extension targets - don't hand-wire via CLI).
+
+See "Roadmap - Game-changing bets" and "Accounts & Sync" below for the full detail on 3-5.
+
+---
+
 ## Platform & Stack
 
 - **Framework:** SwiftUI (iOS only)
