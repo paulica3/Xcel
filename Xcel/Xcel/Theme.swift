@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // The near-black arena backdrop is fixed; the accent is the user's pick.
 extension Color {
@@ -7,15 +8,44 @@ extension Color {
     static let eliminationRed = Color(red: 1.0, green: 0.23, blue: 0.19)
 }
 
+// Tracks whether the software keyboard is currently on screen, so sheets can
+// tell "the user is dragging to lower the keyboard" apart from "the user is
+// swiping the sheet away."
+private final class KeyboardObserver: ObservableObject {
+    @Published var isVisible = false
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .sink { [weak self] _ in self?.isVisible = true }
+            .store(in: &cancellables)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .sink { [weak self] _ in self?.isVisible = false }
+            .store(in: &cancellables)
+    }
+}
+
+// Multi-line text fields (`TextField(..., axis: .vertical)`) treat Return as
+// "add a line," not "submit" - with no other affordance the keyboard has no
+// way to close. Drag-down-to-dismiss (`.scrollDismissesKeyboard(.interactively)`)
+// is the natural fix, same gesture as Messages/Mail, but on a sheet that same
+// drag also satisfies the sheet's own swipe-to-dismiss, so a short scroll view
+// can close the whole sheet instead of just lowering the keyboard. Disabling
+// the sheet's interactive dismiss while the keyboard is actually up removes
+// that conflict without adding any visible chrome.
+private struct KeyboardDismissModifier: ViewModifier {
+    @StateObject private var keyboard = KeyboardObserver()
+
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(keyboard.isVisible)
+    }
+}
+
 extension View {
-    // Multi-line text fields (`TextField(..., axis: .vertical)`) treat Return
-    // as "add a line," not "submit" - with no other affordance, the keyboard
-    // has no way to close. A keyboard-toolbar "Done" button works but the
-    // system accessory bar is a fixed light-gray strip that clashes with the
-    // arena-black theme, so instead: drag down on the scroll view to dismiss,
-    // same as Messages/Mail - no extra chrome needed.
     func dismissKeyboardOnScroll() -> some View {
-        scrollDismissesKeyboard(.interactively)
+        modifier(KeyboardDismissModifier())
     }
 }
 
