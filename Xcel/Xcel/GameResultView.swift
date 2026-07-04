@@ -66,6 +66,10 @@ struct GameResultView: View {
                         labeledCard("WENT BEYOND THE PLAN", game.extraNotes)
                     }
 
+                    if game.hasSong {
+                        labeledCard("WALKOUT SONG", "\(game.songTitle) — \(game.songArtist)")
+                    }
+
                     if !game.verdictFeedback.isEmpty {
                         labeledCard("COACH'S NOTES", game.verdictFeedback)
                     }

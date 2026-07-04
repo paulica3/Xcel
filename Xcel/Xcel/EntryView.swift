@@ -17,6 +17,10 @@ struct EntryView: View {
     @State private var coachLoading = false
     @State private var showCoaching = false
     @State private var showPlanAI = false
+    @State private var showSongPicker = false
+    @State private var songTitle = ""
+    @State private var songArtist = ""
+    @State private var songAppleMusicID = ""
 
     private var accent: Color { settings.accent.color }
     private var isMorning: Bool { game.checklist.isEmpty }
@@ -41,6 +45,9 @@ struct EntryView: View {
             if !isMorning {
                 items = game.checklist
                 extraNotes = game.extraNotes
+                songTitle = game.songTitle
+                songArtist = game.songArtist
+                songAppleMusicID = game.songAppleMusicID
             } else if items.isEmpty {
                 // Fresh plan - pre-load the user's recurring daily tasks so they
                 // don't re-type their staples. Fully editable from here.
@@ -59,6 +66,9 @@ struct EntryView: View {
         guard !isMorning, !items.isEmpty else { return }
         game.checklist = items
         game.extraNotes = extraNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        game.songTitle = songTitle
+        game.songArtist = songArtist
+        game.songAppleMusicID = songAppleMusicID
         try? modelContext.save()
     }
 
@@ -406,6 +416,36 @@ struct EntryView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("WALKOUT SONG")
+                        .font(.system(size: 10, weight: .bold))
+                        .kerning(2)
+                        .foregroundStyle(accent)
+                    Button { showSongPicker = true } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "music.note")
+                            Text(songTitle.isEmpty ? "Pick a song for today (optional)" : "\(songTitle) — \(songArtist)")
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(songTitle.isEmpty ? Color(white: 0.5) : .white)
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(white: 0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .sheet(isPresented: $showSongPicker) {
+                    SongPickerSheet(accent: accent) { selection in
+                        songTitle = selection.title
+                        songArtist = selection.artist
+                        songAppleMusicID = selection.appleMusicID
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
                     Text("ANYTHING EXTRA?")
                         .font(.system(size: 10, weight: .bold))
                         .kerning(2)
@@ -446,6 +486,9 @@ struct EntryView: View {
             } else {
                 game.checklist = items
                 game.extraNotes = extraNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+                game.songTitle = songTitle
+                game.songArtist = songArtist
+                game.songAppleMusicID = songAppleMusicID
                 try? modelContext.save()
                 goToSubmit = true
             }

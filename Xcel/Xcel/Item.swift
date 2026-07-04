@@ -196,6 +196,10 @@ final class Game {
     var challengeOverturned: Bool = false
     var challengeStatement: String = ""
     var challengeRuling: String = ""
+    // Walkout song - picked via Apple Music at the end of the evening log.
+    var songTitle: String = ""
+    var songArtist: String = ""
+    var songAppleMusicID: String = ""
     var series: Series?
 
     init(date: Date, gameNumber: Int) {
@@ -212,6 +216,8 @@ final class Game {
     var hasBoxScore: Bool {
         scoreEffort + scoreDiscipline + scoreMood + scoreProductivity > 0
     }
+
+    var hasSong: Bool { !songTitle.isEmpty }
 
     // The day's overall mark, one decimal - the headline box-score number.
     var boxOverall: Double {

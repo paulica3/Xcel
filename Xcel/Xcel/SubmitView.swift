@@ -8,6 +8,7 @@ struct SubmitView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.syncService) private var sync
     @Query(sort: \Series.weekStart, order: .reverse) private var allSeries: [Series]
     @State private var phase: Phase = .ready
     @State private var result: JudgeResult? = nil
@@ -226,7 +227,8 @@ struct SubmitView: View {
             big: r.verdict == .win ? "W" : "L",
             bigIsWin: r.verdict == .win,
             headline: r.oneLiner,
-            sub: "\(wins)–\(losses) in the series"
+            sub: "\(wins)–\(losses) in the series",
+            songCredit: game.hasSong ? "🎵 \(game.songTitle) — \(game.songArtist)" : ""
         )
     }
 
@@ -299,6 +301,29 @@ struct SubmitView: View {
                     // Hand off to the animated play; FX + verdict fire from there.
                     play = VerdictPlay.random(for: judgeResult.verdict)
                     withAnimation(.easeInOut(duration: 0.3)) { phase = .revealing }
+
+                    // Best-effort - a future league standings view shouldn't wait
+                    // for the next app-open to see today's result.
+                    if case .signedIn = sync.authState {
+                        let summary = SyncGameSummary(
+                            id: game.id,
+                            seriesId: game.series?.id ?? UUID(),
+                            date: game.date,
+                            gameNumber: game.gameNumber,
+                            verdict: game.verdict.rawValue,
+                            verdictOneLiner: game.verdictOneLiner,
+                            scoreEffort: game.scoreEffort,
+                            scoreDiscipline: game.scoreDiscipline,
+                            scoreMood: game.scoreMood,
+                            scoreProductivity: game.scoreProductivity,
+                            excused: game.excused,
+                            challenged: game.challenged,
+                            challengeOverturned: game.challengeOverturned,
+                            songTitle: game.songTitle,
+                            songArtist: game.songArtist
+                        )
+                        Task { try? await sync.pushGames([summary]) }
+                    }
                 }
             } catch {
                 await MainActor.run {

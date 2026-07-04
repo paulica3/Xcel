@@ -8,6 +8,7 @@ struct ShareCardContent {
     var bigIsWin: Bool       // accent vs muted color for the hero
     var headline: String     // punchy line
     var sub: String          // record / context
+    var songCredit: String = ""  // e.g. "🎵 Song Title — Artist"; empty = hidden
 }
 
 // The 9:16 visual rendered to an image for sharing (fills IG Stories cleanly).
@@ -45,6 +46,13 @@ struct ShareCardView: View {
                     .foregroundStyle(Color(white: 0.5))
                     .padding(.top, 10)
                     .monospacedDigit()
+
+                if !content.songCredit.isEmpty {
+                    Text(content.songCredit)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(accent.opacity(0.85))
+                        .padding(.top, 10)
+                }
                 Spacer()
 
                 VStack(spacing: 4) {
