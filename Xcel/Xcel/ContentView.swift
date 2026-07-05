@@ -13,40 +13,62 @@ struct ContentView: View {
     }
 
     @State private var showLaunch = true
+    // Home's wordmark/badge fade in only once the launch flight has docked onto
+    // them (heroRevealed) - until then the splash's flying copies are the only
+    // visible ones, so nothing shows doubled.
+    @State private var heroRevealed = false
+    // Where Home's wordmark/badge sit on screen, reported via HeroFrameKey in
+    // the shared "hero" coordinate space. The launch splash flies its copies
+    // exactly onto these frames, so the handoff swap is invisible.
+    @State private var heroFrames: [String: CGRect] = [:]
 
     var body: some View {
         ZStack {
             mainContent
 
-            // The cold-open splash sits above everything (including onboarding) on
-            // each fresh launch, then swipes away to reveal the app.
+            // The cold-open splash sits above everything (including onboarding)
+            // on each fresh launch. It auto-plays the hero transition, then
+            // cross-fades: onReveal brings Home's real wordmark up underneath
+            // the flying copy, onFinish removes the splash once they've fused.
             if showLaunch {
-                LaunchView(accent: settings.accent.color) {
-                    withAnimation(.easeInOut(duration: 0.5)) { showLaunch = false }
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
+                LaunchView(accent: settings.accent.color,
+                           homeWordmarkFrame: heroFrames["wordmark"] ?? .zero,
+                           homeBadgeFrame: heroFrames["badge"] ?? .zero,
+                           onReveal: {
+                               withAnimation(.easeOut(duration: 0.2)) { heroRevealed = true }
+                           },
+                           onFinish: { showLaunch = false })
                 .zIndex(1)
             }
         }
+        .coordinateSpace(.named("hero"))
+        .onPreferenceChange(HeroFrameKey.self) { heroFrames = $0 }
     }
 
     private var mainContent: some View {
         NavigationStack {
             HomeView(series: currentSeries,
                      stats: CareerStats.compute(from: allSeries),
-                     postseason: Postseason.compute(from: allSeries))
+                     postseason: Postseason.compute(from: allSeries),
+                     heroActive: !heroRevealed)
         }
         .onAppear {
             ensureCurrentSeries()
+            // Must run before processMissedGames() - it settles any day inside
+            // an approved Off Season window so isMissed() (which only fires on
+            // still-.pending days) never turns it into an auto-loss.
+            applyOffSeasonPause()
             processMissedGames()
             let today = currentSeries?.games.first { $0.isToday }
+            let isOffSeasonToday = OffSeasonService.isActive(settings.offSeasonPeriods, on: Date()) != nil
             settings.setUpNotifications(
                 // Plan's set -> skip today's morning/lock nudges.
                 skipTodayMorning: today?.morningCompleted ?? false,
                 // Day's already judged -> skip today's logging/evening nudges.
-                skipTodayEvening: (today?.verdict ?? .pending) != .pending
+                skipTodayEvening: (today?.verdict ?? .pending) != .pending,
+                suppressAll: isOffSeasonToday
             )
-            refreshCheckups()
+            refreshCheckups(suppressAll: isOffSeasonToday)
         }
         .task {
             // Judge any pending Challenge Call follow-throughs from completed weeks.
@@ -85,20 +107,41 @@ struct ContentView: View {
     }
 
     // Refresh the state-driven notifications (4pm check-up + high-stakes alerts)
-    // with the current series score on each app open.
-    private func refreshCheckups() {
+    // with the current series score on each app open. `suppressAll` mutes both
+    // without touching the user's actual notification preferences - used while
+    // an Off Season vacation is active.
+    private func refreshCheckups(suppressAll: Bool = false) {
         let series = currentSeries
         let wins = series?.wins ?? 0
         let losses = series?.losses ?? 0
         NotificationManager.scheduleCheckups(
-            enabled: settings.notificationsEnabled,
+            enabled: settings.notificationsEnabled && !suppressAll,
             wins: wins, losses: losses
         )
         NotificationManager.scheduleStakes(
             enabled: settings.notificationsEnabled && settings.stakesNotificationsEnabled
-                && !(series?.isWarmup ?? false),
+                && !(series?.isWarmup ?? false) && !suppressAll,
             wins: wins, losses: losses
         )
+    }
+
+    // Pre-settles any day inside an approved Off Season window: paused, not
+    // scored, doesn't touch the streak/record (reuses the same `excused` flag
+    // the Timeout power-up already relies on for that exclusion), and never
+    // becomes an auto-loss since processMissedGames() only acts on days still
+    // `.pending`.
+    private func applyOffSeasonPause() {
+        guard let series = currentSeries else { return }
+        var changed = false
+        for game in series.games where game.verdict == .pending
+            && OffSeasonService.isActive(settings.offSeasonPeriods, on: game.date) != nil {
+            game.verdict = .loss
+            game.excused = true
+            game.offSeason = true
+            game.verdictOneLiner = "Off-season - this day is paused."
+            changed = true
+        }
+        if changed { try? modelContext.save() }
     }
 
     // Mirrors the unconditional-recompute pattern refreshCheckups() already
@@ -107,6 +150,15 @@ struct ContentView: View {
     // retries with fresh data, and this never blocks the daily ritual.
     private func syncOnAppear() async {
         guard case .signedIn = sync.authState else { return }
+
+        // Pull in a name/photo set on another device before pushing this
+        // device's state back up - a manual local edit always wins.
+        if let profile = try? await sync.fetchProfile() {
+            settings.applyRemoteName(profile.displayName)
+            if let b64 = profile.avatarBase64, let data = Data(base64Encoded: b64) {
+                settings.applyRemotePhoto(data)
+            }
+        }
 
         if allSeries.isEmpty {
             if let history = try? await sync.fetchHistory() {
@@ -142,6 +194,7 @@ struct ContentView: View {
                 scoreMood: game.scoreMood,
                 scoreProductivity: game.scoreProductivity,
                 excused: game.excused,
+                offSeason: game.offSeason,
                 challenged: game.challenged,
                 challengeOverturned: game.challengeOverturned,
                 songTitle: game.songTitle,
@@ -150,6 +203,10 @@ struct ContentView: View {
         }
         try? await sync.pushSeries(seriesSummaries)
         try? await sync.pushGames(gameSummaries)
+        try? await sync.pushProfile(SyncProfileSummary(
+            displayName: settings.userName,
+            avatarBase64: settings.profileImageData?.base64EncodedString()
+        ))
     }
 
     // Only ever runs when local Series history is empty (a fresh device on an
@@ -180,6 +237,7 @@ struct ContentView: View {
             game.scoreMood = summary.scoreMood
             game.scoreProductivity = summary.scoreProductivity
             game.excused = summary.excused
+            game.offSeason = summary.offSeason
             game.challenged = summary.challenged
             game.challengeOverturned = summary.challengeOverturned
             game.songTitle = summary.songTitle

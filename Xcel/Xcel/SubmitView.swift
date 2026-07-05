@@ -317,6 +317,7 @@ struct SubmitView: View {
                             scoreMood: game.scoreMood,
                             scoreProductivity: game.scoreProductivity,
                             excused: game.excused,
+                            offSeason: game.offSeason,
                             challenged: game.challenged,
                             challengeOverturned: game.challengeOverturned,
                             songTitle: game.songTitle,

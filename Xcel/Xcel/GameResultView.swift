@@ -124,6 +124,19 @@ struct GameResultView: View {
     private var resolutionBlock: some View {
         if game.challenged {
             challengeResultCard
+        } else if game.offSeason {
+            HStack(spacing: 10) {
+                Image(systemName: "airplane.circle.fill")
+                    .foregroundStyle(accent)
+                Text("You were off-season - this day doesn't count.")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         } else if game.excused {
             // Voided by a Timeout power-up (no challenge attached).
             HStack(spacing: 10) {

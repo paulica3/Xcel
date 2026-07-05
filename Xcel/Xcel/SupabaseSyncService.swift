@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import OSLog
 
 // The real SyncService conformance, wrapping the Supabase client. Lives in
 // its own file so NoOpSyncService.swift (and the rest of the app) has zero
@@ -9,6 +10,7 @@ import Supabase
 final class SupabaseSyncService: SyncService {
     private let client: SupabaseClient
     private(set) var authState: SyncAuthState = .signedOut
+    private let logger = Logger(subsystem: "com.paulefrim.Xcel", category: "SupabaseSync")
 
     init() {
         client = SupabaseClient(
@@ -46,10 +48,18 @@ final class SupabaseSyncService: SyncService {
                 credentials: OpenIDConnectCredentials(provider: .apple, idToken: appleIDToken, nonce: nonce)
             )
             let userId = session.user.id
-            let profile = ProfileRow(id: userId, displayName: fullName ?? "")
-            try? await client.from("profiles").upsert(profile).execute()
+            // Apple only ever hands back the name on the account's very first
+            // authorization, ever - so only touch display_name when we actually
+            // have one. A later sign-in (any device) sends fullName == nil and
+            // must never clobber an already-stored name with an empty string.
+            if let fullName, !fullName.isEmpty {
+                try? await client.from("profiles").upsert(ProfileRow(id: userId, displayName: fullName)).execute()
+            } else {
+                try? await client.from("profiles").upsert(["id": userId.uuidString]).execute()
+            }
+            let remoteName = (try? await fetchDisplayName(for: userId)) ?? (fullName ?? "")
 
-            let state = SyncAuthState.signedIn(userId: userId.uuidString, displayName: fullName ?? "")
+            let state = SyncAuthState.signedIn(userId: userId.uuidString, displayName: remoteName)
             authState = state
             return state
         } catch {
@@ -58,7 +68,12 @@ final class SupabaseSyncService: SyncService {
     }
 
     func signOut() async throws {
-        try await client.auth.signOut()
+        // Local scope wipes the on-device session without a network round-trip
+        // to Supabase - if that call is the one that fails (offline, hiccup),
+        // the old `try await` would throw before ever flipping authState, so
+        // the sign-out button did nothing and the user looked stuck signed in.
+        // Always clear local state regardless of whether the remote revoke lands.
+        try? await client.auth.signOut(scope: .local)
         authState = .signedOut
     }
 
@@ -86,6 +101,57 @@ final class SupabaseSyncService: SyncService {
         }
         let row = SettingsRow(from: settings, userId: userId)
         try await client.from("settings").upsert(row).execute()
+    }
+
+    func pushProfile(_ profile: SyncProfileSummary) async throws {
+        guard case .signedIn(let userIdString, _) = authState, let userId = UUID(uuidString: userIdString) else {
+            throw SyncError.notSignedIn
+        }
+        struct Row: Encodable {
+            let id: UUID
+            let displayName: String
+            let avatarUrl: String?
+            enum CodingKeys: String, CodingKey {
+                case id
+                case displayName = "display_name"
+                case avatarUrl = "avatar_url"
+            }
+        }
+        let row = Row(id: userId, displayName: profile.displayName, avatarUrl: profile.avatarBase64)
+        do {
+            try await client.from("profiles").upsert(row).execute()
+            logger.info("pushProfile OK - name=\(profile.displayName, privacy: .public) hasAvatar=\(profile.avatarBase64 != nil, privacy: .public)")
+        } catch {
+            logger.error("pushProfile FAILED - \(String(describing: error), privacy: .public)")
+            throw error
+        }
+    }
+
+    func fetchProfile() async throws -> SyncProfileSummary? {
+        guard case .signedIn(let userIdString, _) = authState, let userId = UUID(uuidString: userIdString) else {
+            throw SyncError.notSignedIn
+        }
+        struct Row: Decodable {
+            let displayName: String
+            let avatarUrl: String?
+            enum CodingKeys: String, CodingKey {
+                case displayName = "display_name"
+                case avatarUrl = "avatar_url"
+            }
+        }
+        do {
+            let rows: [Row] = try await client.from("profiles")
+                .select("display_name, avatar_url")
+                .eq("id", value: userId)
+                .execute()
+                .value
+            logger.info("fetchProfile OK - rows=\(rows.count, privacy: .public) name=\(rows.first?.displayName ?? "nil", privacy: .public) hasAvatar=\(rows.first?.avatarUrl != nil, privacy: .public)")
+            guard let r = rows.first else { return nil }
+            return SyncProfileSummary(displayName: r.displayName, avatarBase64: r.avatarUrl)
+        } catch {
+            logger.error("fetchProfile FAILED - \(String(describing: error), privacy: .public)")
+            throw error
+        }
     }
 
     func fetchHistory() async throws -> RemoteHistory {
@@ -202,6 +268,7 @@ private struct GameRow: Codable {
     let scoreMood: Double
     let scoreProductivity: Double
     let excused: Bool
+    let offSeason: Bool
     let challenged: Bool
     let challengeOverturned: Bool
     let songTitle: String
@@ -217,6 +284,7 @@ private struct GameRow: Codable {
         case scoreDiscipline = "score_discipline"
         case scoreMood = "score_mood"
         case scoreProductivity = "score_productivity"
+        case offSeason = "off_season"
         case challengeOverturned = "challenge_overturned"
         case songTitle = "song_title"
         case songArtist = "song_artist"
@@ -235,6 +303,7 @@ private struct GameRow: Codable {
         scoreMood = summary.scoreMood
         scoreProductivity = summary.scoreProductivity
         excused = summary.excused
+        offSeason = summary.offSeason
         challenged = summary.challenged
         challengeOverturned = summary.challengeOverturned
         songTitle = summary.songTitle
@@ -254,6 +323,7 @@ private struct GameRow: Codable {
             scoreMood: scoreMood,
             scoreProductivity: scoreProductivity,
             excused: excused,
+            offSeason: offSeason,
             challenged: challenged,
             challengeOverturned: challengeOverturned,
             songTitle: songTitle,

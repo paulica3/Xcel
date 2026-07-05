@@ -38,31 +38,31 @@ enum PowerUpStore {
 
 // A spendable comeback mechanic.
 enum PowerUp: String, CaseIterable, Identifiable {
-    case timeout, buzzerBeater
+    case buzzerBeater, tradeDeadline
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .timeout:      return "Timeout"
-        case .buzzerBeater: return "Buzzer Beater"
+        case .buzzerBeater:  return "Buzzer Beater"
+        case .tradeDeadline: return "Trade Deadline"
         }
     }
     var icon: String {
         switch self {
-        case .timeout:      return "pause.circle.fill"
-        case .buzzerBeater: return "clock.arrow.circlepath"
+        case .buzzerBeater:  return "clock.arrow.circlepath"
+        case .tradeDeadline: return "arrow.left.arrow.right.circle.fill"
         }
     }
     var cost: Int {
         switch self {
-        case .timeout:      return 40
-        case .buzzerBeater: return 75
+        case .buzzerBeater:  return 75
+        case .tradeDeadline: return 35
         }
     }
     var blurb: String {
         switch self {
-        case .timeout:      return "Excuse one past L so it doesn't count - life happens."
-        case .buzzerBeater: return "Re-open a past L and take it back to the judge."
+        case .buzzerBeater:  return "Re-open a past L and take it back to the judge."
+        case .tradeDeadline: return "Swap one task on today's or an upcoming plan for something you'll actually hit."
         }
     }
 }
@@ -75,17 +75,31 @@ struct PowerUpsView: View {
 
     @State private var expanded: PowerUp?
     @State private var pending: (power: PowerUp, game: Game)?
+    @State private var tradingGame: Game?
     @State private var balanceTick = 0   // forces a refresh after a purchase
 
     private var accent: Color { settings.accent.color }
     private var balance: Int { _ = balanceTick; return PowerUpStore.balance(allSeries) }
 
-    // Lost, non-excused games are the targets for both power-ups.
-    private var eligibleGames: [Game] {
-        allSeries.filter { !$0.isWarmup }
-            .flatMap { $0.games }
-            .filter { $0.verdict == .loss && !$0.excused }
-            .sorted { $0.date > $1.date }
+    // Lost, non-excused games are Buzzer Beater's targets; still-pending
+    // today/upcoming games (with a plan already on them) are Trade Deadline's.
+    private func eligibleGames(for p: PowerUp) -> [Game] {
+        switch p {
+        case .buzzerBeater:
+            return allSeries.filter { !$0.isWarmup }
+                .flatMap { $0.games }
+                .filter { $0.verdict == .loss && !$0.excused }
+                .sorted { $0.date > $1.date }
+        case .tradeDeadline:
+            let todayStart = Calendar.current.startOfDay(for: Date())
+            return allSeries.filter { !$0.isWarmup }
+                .flatMap { $0.games }
+                .filter {
+                    $0.verdict == .pending && !$0.checklist.isEmpty
+                        && Calendar.current.startOfDay(for: $0.date) >= todayStart
+                }
+                .sorted { $0.date < $1.date }
+        }
     }
 
     var body: some View {
@@ -103,6 +117,16 @@ struct PowerUpsView: View {
         }
         .alert(item: pendingBox) { box in
             confirmAlert(box.value)
+        }
+        .sheet(isPresented: Binding(
+            get: { tradingGame != nil },
+            set: { if !$0 { tradingGame = nil } }
+        )) {
+            if let game = tradingGame {
+                TradeDeadlineSheet(game: game, cost: PowerUp.tradeDeadline.cost, accent: accent) { index, newTitle in
+                    applyTrade(index: index, newTitle: newTitle, to: game)
+                }
+            }
         }
     }
 
@@ -196,14 +220,21 @@ struct PowerUpsView: View {
 
             if isOpen {
                 Divider().overlay(Color(white: 0.15))
+                let games = eligibleGames(for: p)
                 if !affordable {
                     cardNote("Not enough Momentum yet - win to bank more.")
-                } else if eligibleGames.isEmpty {
-                    cardNote("No eligible games. This works on a past L.")
+                } else if games.isEmpty {
+                    cardNote(p == .buzzerBeater
+                        ? "No eligible games. This works on a past L."
+                        : "No eligible days. This works on today's or an upcoming plan.")
                 } else {
                     VStack(spacing: 8) {
-                        ForEach(eligibleGames) { game in
-                            gamePickRow(p, game)
+                        ForEach(games) { game in
+                            if p == .buzzerBeater {
+                                gamePickRow(p, game)
+                            } else {
+                                tradeGamePickRow(game)
+                            }
                         }
                     }
                     .padding(14)
@@ -252,6 +283,32 @@ struct PowerUpsView: View {
         }
     }
 
+    private func tradeGamePickRow(_ game: Game) -> some View {
+        Button { tradingGame = game } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color(white: 0.5))
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Game \(game.gameNumber) · \(dayLabel(game.date))")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("\(game.checklist.count) task\(game.checklist.count == 1 ? "" : "s") planned")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+                Spacer()
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(accent)
+            }
+            .padding(12)
+            .background(Color(white: 0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
     private func dayLabel(_ date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "EEE, MMM d"
@@ -272,17 +329,19 @@ struct PowerUpsView: View {
     private func confirmAlert(_ choice: (power: PowerUp, game: Game)) -> Alert {
         Alert(
             title: Text("Use \(choice.power.title)?"),
-            message: Text("Spend \(choice.power.cost) Momentum on Game \(choice.game.gameNumber). \(choice.power == .timeout ? "This L will be excused." : "This game re-opens for a new entry.")"),
+            message: Text("Spend \(choice.power.cost) Momentum on Game \(choice.game.gameNumber). This game re-opens for a new entry."),
             primaryButton: .default(Text("Use it")) { apply(choice.power, to: choice.game) },
             secondaryButton: .cancel()
         )
     }
 
+    // Only ever reached via gamePickRow, which is wired up for Buzzer Beater
+    // alone - Trade Deadline has its own flow through TradeDeadlineSheet/applyTrade.
     private func apply(_ p: PowerUp, to game: Game) {
         guard balance >= p.cost else { return }
         switch p {
-        case .timeout:
-            game.excused = true
+        case .tradeDeadline:
+            return
         case .buzzerBeater:
             game.verdict = .pending
             game.verdictOneLiner = ""
@@ -301,5 +360,142 @@ struct PowerUpsView: View {
         pending = nil
         expanded = nil
         balanceTick += 1
+    }
+
+    // Swaps one task's title on an unjudged day and resets its done/note/photo
+    // state (it's a different task now) - never touches a judged verdict.
+    private func applyTrade(index: Int, newTitle: String, to game: Game) {
+        guard balance >= PowerUp.tradeDeadline.cost, game.checklist.indices.contains(index) else { return }
+        game.checklist[index].title = newTitle
+        game.checklist[index].isDone = false
+        game.checklist[index].note = ""
+        game.checklist[index].isGameBall = false
+        game.checklist[index].photoData = nil
+        game.checklist[index].photoVerified = false
+        game.checklist[index].photoNote = ""
+        PowerUpStore.charge(PowerUp.tradeDeadline.cost)
+        try? modelContext.save()
+        tradingGame = nil
+        expanded = nil
+        balanceTick += 1
+    }
+}
+
+// Pick a task from an eligible day's plan, then write in its replacement.
+private struct TradeDeadlineSheet: View {
+    let game: Game
+    let cost: Int
+    let accent: Color
+    let onApply: (Int, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedIndex: Int?
+    @State private var newTitle = ""
+
+    private var ready: Bool {
+        selectedIndex != nil && !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        ZStack {
+            Color.arenaBlack.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Pick the task you want to trade, then write in something you'll actually hit.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(white: 0.5))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        VStack(spacing: 8) {
+                            ForEach(Array(game.checklist.enumerated()), id: \.offset) { index, item in
+                                taskRow(index, item)
+                            }
+                        }
+
+                        if selectedIndex != nil {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("NEW TASK")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .kerning(2)
+                                    .foregroundStyle(accent)
+                                TextField("What will you actually do instead?", text: $newTitle, axis: .vertical)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2...5)
+                                    .padding(12)
+                                    .background(Color(white: 0.07))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+                    }
+                    .padding(24)
+                }
+
+                Button {
+                    if let index = selectedIndex {
+                        onApply(index, newTitle.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
+                    dismiss()
+                } label: {
+                    Text("Trade it - \(cost) MP")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(ready ? .black : Color(white: 0.3))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(ready ? accent : Color(white: 0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .disabled(!ready)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            }
+        }
+        .dismissKeyboardOnScroll()
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TRADE DEADLINE")
+                    .font(.system(size: 11, weight: .bold))
+                    .kerning(2.5)
+                    .foregroundStyle(accent)
+                Text("Swap a task")
+                    .font(.system(size: 24, weight: .black))
+                    .foregroundStyle(.white)
+            }
+            Spacer()
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color(white: 0.45))
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+    }
+
+    private func taskRow(_ index: Int, _ item: ChecklistItem) -> some View {
+        let selected = selectedIndex == index
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) { selectedIndex = index }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(selected ? accent : Color(white: 0.3))
+                Text(item.title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .strikethrough(selected)
+                Spacer()
+            }
+            .padding(12)
+            .background(Color(white: 0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? accent.opacity(0.4) : .clear, lineWidth: 1))
+        }
     }
 }

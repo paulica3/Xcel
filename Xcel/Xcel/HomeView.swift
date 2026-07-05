@@ -5,6 +5,10 @@ struct HomeView: View {
     let series: Series?
     let stats: CareerStats
     let postseason: Postseason
+    // True while the launch splash is still up - Home's own wordmark/badge stay
+    // hidden so the splash's flying copies are the only ones visible, then swap
+    // in pixel-exact once the flight docks.
+    var heroActive: Bool
     @Environment(AppSettings.self) private var settings
 
     @State private var showAccount = false
@@ -74,7 +78,11 @@ struct HomeView: View {
             }
 
             WavingTitle(text: "XCEL", accent: accent)
+                .reportHeroFrame("wordmark")
+                .opacity(heroActive ? 0 : 1)
             XtinctBadge(accent: accent)
+                .reportHeroFrame("badge")
+                .opacity(heroActive ? 0 : 1)
         }
         .padding(.top, 16)
     }

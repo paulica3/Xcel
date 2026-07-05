@@ -16,19 +16,29 @@ struct WavingTitle: View {
             let glowOpacity = 0.30 + pulse * 0.35
 
             ZStack {
-                Text(text)
+                letterSpaced(text, spacing: 3)
                     .font(.system(size: size, weight: .black))
-                    .kerning(3)
                     .foregroundStyle(accent)
                     .blur(radius: glow)
                     .opacity(glowOpacity)
 
-                Text(text)
+                letterSpaced(text, spacing: 3)
                     .font(.system(size: size, weight: .black))
-                    .kerning(3)
                     .foregroundStyle(.white)
             }
             .padding(.vertical, 16)
+        }
+    }
+}
+
+// `.kerning()`/`.tracking()` on Text adds a trailing gap after the *last*
+// character with no matching leading gap before the first - a centered
+// wordmark then visually sits left of true center. Building the spacing from
+// individual glyphs (N-1 gaps, not N) sidesteps that SwiftUI quirk entirely.
+private func letterSpaced(_ text: String, spacing: CGFloat) -> some View {
+    HStack(spacing: spacing) {
+        ForEach(Array(text.enumerated()), id: \.offset) { _, ch in
+            Text(String(ch))
         }
     }
 }

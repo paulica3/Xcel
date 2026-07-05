@@ -28,10 +28,18 @@ struct SyncGameSummary: Codable {
     let scoreMood: Double
     let scoreProductivity: Double
     let excused: Bool
+    let offSeason: Bool
     let challenged: Bool
     let challengeOverturned: Bool
     let songTitle: String
     let songArtist: String
+}
+
+// The account's identity - name + photo. Separate from SyncSettingsSummary
+// since it maps to the `profiles` table, not `settings`.
+struct SyncProfileSummary: Codable {
+    var displayName: String
+    var avatarBase64: String?
 }
 
 struct SyncSettingsSummary: Codable {
@@ -79,10 +87,15 @@ protocol SyncService {
     func pushSeries(_ series: [SyncSeriesSummary]) async throws
     func pushGames(_ games: [SyncGameSummary]) async throws
     func pushSettings(_ settings: SyncSettingsSummary) async throws
+    func pushProfile(_ profile: SyncProfileSummary) async throws
 
     // Restore-on-new-device: pulls everything back down once, after sign-in,
     // only when local history is empty.
     func fetchHistory() async throws -> RemoteHistory
+    // Called on sign-in and every app open, so a name/photo set on another
+    // device (or Apple's own name grant) can flow in - gated by the local
+    // "is this custom" flags in AppSettings so a manual local edit always wins.
+    func fetchProfile() async throws -> SyncProfileSummary?
 }
 
 // Default when signed out, or when Supabase isn't wired up yet. Every method
@@ -98,9 +111,11 @@ final class NoOpSyncService: SyncService {
     func pushSeries(_ series: [SyncSeriesSummary]) async throws {}
     func pushGames(_ games: [SyncGameSummary]) async throws {}
     func pushSettings(_ settings: SyncSettingsSummary) async throws {}
+    func pushProfile(_ profile: SyncProfileSummary) async throws {}
     func fetchHistory() async throws -> RemoteHistory {
         RemoteHistory(series: [], games: [], settings: nil)
     }
+    func fetchProfile() async throws -> SyncProfileSummary? { nil }
 }
 
 // SyncService is a protocol (existential), so it can't ride through

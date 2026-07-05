@@ -36,6 +36,7 @@ create table public.games (
   score_mood          double precision not null default 0,
   score_productivity  double precision not null default 0,
   excused             boolean not null default false,
+  off_season          boolean not null default false,
   challenged          boolean not null default false,
   challenge_overturned boolean not null default false,
   song_title          text not null default '',

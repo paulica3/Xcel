@@ -316,6 +316,23 @@ enum AccentTheme: String, CaseIterable, Identifiable {
     }
 }
 
+// One approved Off Season (vacation) window. Deliberately UserDefaults-only,
+// never synced to Supabase - the free-text description is exactly the kind of
+// raw entry the Accounts & Sync design promises stays private to the author,
+// which is also what makes the in-app privacy disclaimer literally true.
+struct OffSeasonPeriod: Codable, Identifiable {
+    var id: UUID
+    var requestedAt: Date
+    var startDate: Date
+    var durationDays: Int
+    var description: String
+    var aiVerdict: String
+
+    var endDate: Date {
+        Calendar.current.date(byAdding: .day, value: durationDays - 1, to: startDate) ?? startDate
+    }
+}
+
 @Observable
 final class AppSettings {
     var accent: AccentTheme {
@@ -323,6 +340,15 @@ final class AppSettings {
     }
     var userName: String {
         didSet { UserDefaults.standard.set(userName, forKey: Keys.userName) }
+    }
+    // Set once the user has typed their own name (or explicitly cleared their
+    // photo) - once true, a name/photo pulled from Sign in with Apple or the
+    // synced account never overwrites it.
+    var userNameIsCustom: Bool {
+        didSet { UserDefaults.standard.set(userNameIsCustom, forKey: Keys.userNameIsCustom) }
+    }
+    var profileImageIsCustom: Bool {
+        didSet { UserDefaults.standard.set(profileImageIsCustom, forKey: Keys.profileImageIsCustom) }
     }
     // The guide whose voice the judge speaks in.
     var guide: Guide {
@@ -336,6 +362,13 @@ final class AppSettings {
     // user doesn't re-type their staples (e.g. "20 pushups after waking up").
     var recurringTasks: [String] {
         didSet { UserDefaults.standard.set(recurringTasks, forKey: Keys.recurringTasks) }
+    }
+    // Approved Off Season vacation windows (max 2/year, enforced by OffSeasonService).
+    var offSeasonPeriods: [OffSeasonPeriod] {
+        didSet {
+            let data = try? JSONEncoder().encode(offSeasonPeriods)
+            UserDefaults.standard.set(data, forKey: Keys.offSeasonPeriods)
+        }
     }
 
     // Stored as a file in Documents (too big for UserDefaults).
@@ -388,9 +421,12 @@ final class AppSettings {
     private enum Keys {
         static let accent = "accentTheme"
         static let userName = "userName"
+        static let userNameIsCustom = "userNameIsCustom"
+        static let profileImageIsCustom = "profileImageIsCustom"
         static let guide = "guide"
         static let theme = "arenaTheme"
         static let recurringTasks = "recurringTasks"
+        static let offSeasonPeriods = "offSeasonPeriods"
         static let hasOnboarded = "hasOnboarded"
         static let notifEnabled = "notifEnabled"
         static let stakesEnabled = "stakesEnabled"
@@ -404,9 +440,14 @@ final class AppSettings {
         let d = UserDefaults.standard
         self.accent = AccentTheme(rawValue: d.string(forKey: Keys.accent) ?? "") ?? .green
         self.userName = d.string(forKey: Keys.userName) ?? "Champ"
+        self.userNameIsCustom = d.bool(forKey: Keys.userNameIsCustom)
+        self.profileImageIsCustom = d.bool(forKey: Keys.profileImageIsCustom)
         self.guide = Guide(rawValue: d.string(forKey: Keys.guide) ?? "") ?? .king
         self.theme = ArenaTheme(rawValue: d.string(forKey: Keys.theme) ?? "") ?? .hardwood
         self.recurringTasks = d.stringArray(forKey: Keys.recurringTasks) ?? []
+        self.offSeasonPeriods = (d.data(forKey: Keys.offSeasonPeriods)).flatMap {
+            try? JSONDecoder().decode([OffSeasonPeriod].self, from: $0)
+        } ?? []
         self.profileImageData = Self.readAvatar()
         self.hasOnboarded = d.bool(forKey: Keys.hasOnboarded)
         self.notificationsEnabled = d.object(forKey: Keys.notifEnabled) as? Bool ?? true
@@ -417,12 +458,25 @@ final class AppSettings {
         self.eveningMinute = d.object(forKey: Keys.eveningMinute) as? Int ?? 0
     }
 
+    // Pulled in from Sign in with Apple or the synced account - never applied
+    // once the user has typed their own name/picked their own photo.
+    func applyRemoteName(_ name: String) {
+        guard !userNameIsCustom, !name.isEmpty, name != userName else { return }
+        userName = name
+    }
+    func applyRemotePhoto(_ data: Data) {
+        guard !profileImageIsCustom, data != profileImageData else { return }
+        profileImageData = data
+    }
+
     // Request permission once (on launch), then schedule with today's state so
-    // already-completed steps don't nag.
-    func setUpNotifications(skipTodayMorning: Bool = false, skipTodayEvening: Bool = false) {
+    // already-completed steps don't nag. `suppressAll` mutes the whole week's
+    // reminders without touching the user's actual `notificationsEnabled`
+    // preference - used while an Off Season vacation is active.
+    func setUpNotifications(skipTodayMorning: Bool = false, skipTodayEvening: Bool = false, suppressAll: Bool = false) {
         NotificationManager.requestAuthorization { _ in
             DispatchQueue.main.async {
-                self.applySchedule(skipTodayMorning: skipTodayMorning, skipTodayEvening: skipTodayEvening)
+                self.applySchedule(skipTodayMorning: skipTodayMorning, skipTodayEvening: skipTodayEvening, suppressAll: suppressAll)
             }
         }
     }
@@ -434,9 +488,9 @@ final class AppSettings {
 
     // State-aware reschedule from ContentView: drop today's morning/lock nudges if
     // the plan is set, and today's logging/evening nudges if the day is logged.
-    func applySchedule(skipTodayMorning: Bool, skipTodayEvening: Bool) {
+    func applySchedule(skipTodayMorning: Bool, skipTodayEvening: Bool, suppressAll: Bool = false) {
         NotificationManager.reschedule(
-            enabled: notificationsEnabled,
+            enabled: notificationsEnabled && !suppressAll,
             morning: (morningHour, morningMinute),
             evening: (eveningHour, eveningMinute),
             skipTodayMorning: skipTodayMorning,

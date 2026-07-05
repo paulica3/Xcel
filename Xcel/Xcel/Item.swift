@@ -186,9 +186,14 @@ final class Game {
     var scoreDiscipline: Double = 0
     var scoreMood: Double = 0
     var scoreProductivity: Double = 0
-    // The loss is excused and no longer counts (via a successful Challenge Call
-    // or a Timeout power-up).
+    // The loss is excused and no longer counts (via a successful Challenge Call,
+    // a Timeout power-up, or an approved Off Season vacation).
     var excused: Bool = false
+    // Set alongside `excused` for a day inside an approved Off Season window -
+    // lets result screens show a distinct "you were off-season" framing instead
+    // of the generic excused copy, without changing any win/loss/streak math
+    // (all of that already keys off `excused` alone).
+    var offSeason: Bool = false
     // Challenge Call: the user contested this loss. `challenged` means the one
     // per-series challenge was spent here (win or lose); `challengeOverturned`
     // is whether the judge flipped the L into a W; `challengeRuling` is the call.
