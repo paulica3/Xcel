@@ -91,6 +91,22 @@ enum NotificationManager {
         }
     }
 
+    // Reminders are only recalculated when the app is next opened - so if the
+    // user acts on today's step without reopening the app afterward (e.g. logs
+    // the evening result and never relaunches), the notifications already
+    // scheduled earlier that day just sit there and fire anyway. These cancel
+    // today's now-irrelevant ones the instant the matching action happens.
+    static func cancelTodayMorning() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ["\(Id.morningPrefix)0", "\(Id.lockWarnPrefix)0"])
+    }
+
+    static func cancelTodayEvening() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ["\(Id.loggingOpenPrefix)0", "\(Id.eveningPrefix)0",
+                              "\(Id.checkupPrefix)0", Id.stakes])
+    }
+
     // The 4pm check-up carries the current series score, so it can't be a single
     // repeating notification. Re-scheduled on each app open for the next few days
     // (today gets the live score; later days refresh next time the app opens).

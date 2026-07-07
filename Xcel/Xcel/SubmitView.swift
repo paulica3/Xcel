@@ -306,6 +306,10 @@ struct SubmitView: View {
                     game.scoreMood = judgeResult.mood
                     game.scoreProductivity = judgeResult.productivity
                     try? modelContext.save()
+                    // The day's judged - kill today's remaining "log it"/checkup/
+                    // stakes reminders now instead of waiting for the next app
+                    // open to notice the day's already done.
+                    NotificationManager.cancelTodayEvening()
                     result = judgeResult
 
                     // Hand off to the animated play; FX + verdict fire from there.

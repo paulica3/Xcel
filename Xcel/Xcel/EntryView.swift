@@ -563,6 +563,7 @@ struct EntryView: View {
             if isMorning {
                 game.checklist = items
                 try? modelContext.save()
+                NotificationManager.cancelTodayMorning()
                 onComplete()
             } else {
                 game.checklist = items
