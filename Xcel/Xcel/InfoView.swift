@@ -20,48 +20,20 @@ struct InfoView: View {
 
                     VStack(spacing: 12) {
                         rule("basketball.fill", "The series",
-                             "Seven games, Monday through Sunday. A fresh series starts every week.")
+                             "Seven games, Monday through Sunday. First to 4 wins takes it.")
                         rule("calendar", "Each game",
-                             "Morning: set your game plan (at least 3 tasks). Night: log how it went with proof. The Judge calls it a W or L.")
+                             "Morning: set your game plan. Night: log how it went. The Judge calls it a W or an L - tough but fair.")
                         rule("clock.badge.checkmark", "Logging window",
-                             "Grade your day after 6:00 PM and before 11:59 PM. You can prep the entry earlier, but you only submit once you've actually played the day out.")
-                        rule("basketball.fill", "The game ball",
-                             "Tap the ○ next to your most important task to make it the game ball. The Judge leans hardest on it. Nail it and a close day tips your way.")
-                        rule("camera.fill", "Photo proof",
-                             "Marked a task done? Back it with a photo. Xcel checks the date and what's in it - all on your phone - and the Judge trusts verified, same-day proof the most.")
-                        rule("trophy.fill", "Winning the series",
-                             "First to 4 wins takes it. Clinch the series and you've moved on.")
-                        rule("trophy.circle.fill", "Road to the Finals",
-                             "Win four series to raise a banner and earn a ring. Stack rings to build a dynasty - find it under your profile.")
-                        rule("bolt.circle.fill", "Momentum & power-ups",
-                             "Win to bank Momentum, then spend it in the Locker Room: a Timeout excuses a past L, a Buzzer Beater re-opens one to replay.")
-                        rule("flame.fill", "Comebacks",
-                             "Down 1-3? Not dead. Win out and steal it 4-3 - the sweetest comeback in the game.")
-                        rule("exclamationmark.triangle.fill", "Elimination",
-                             "Three losses and your back's against the wall. Win or go home.")
-                        rule("house.fill", "Home court advantage",
-                             "When you're down 2+, the Judge eases up to keep you in the fight.")
+                             "You can only submit between 6:00 PM and 11:59 PM - prep earlier, but you grade after the day's actually played out.")
                         rule("clock.badge.xmark", "Miss a game?",
                              "Skip a day and it's an automatic L. No-shows don't get a pass.")
-                        rule("flag.fill", "Challenge Call",
-                             "Think a loss was wrong? Contest it once a series. Make your case - own the mistake and how you'll fix it - and the judge can overturn the L into a W. Win or lose, you only get one. Win it and you're on the hook: live out the plan you promised next week, or you lose your challenge the series after.")
-                        rule("repeat", "Daily tasks",
-                             "Got staples you do every day? Set them in your profile and they'll auto-load into every new game plan - no re-typing.")
-                        rule("sparkles", "Plan with AI",
-                             "Not sure where to start? Type a one-line intention and the AI drafts a concrete, provable plan you can tweak before locking in.")
-                        rule("rosette", "Awards night",
-                             "Each month earns hardware from your real numbers - MVP, Most Improved, Defensive Player, Sixth Man. Find it under your profile.")
-                        rule("paintpalette.fill", "Court themes",
-                             "Change up your arena in Appearance - Hardwood, Blacktop, Parquet, Midnight, Royal. Your accent color rides on top of any look.")
-                        rule("building.columns.fill", "The Judge",
-                             "Tough but fair. Rewards honesty and real effort - sees right through vague proof and excuses.")
-                        rule("brain.head.profile", "The GM remembers",
-                             "The Judge knows your history - your streak, your weak weekday, the task you keep dropping - and calls it like a GM who's watched every game.")
-                        rule("person.wave.2.fill", "Your guide",
-                             "Pick your guide's voice in your profile. It changes how the Judge talks to you, never how strictly you're scored.")
-                        rule("figure.run", "Warm-up week",
-                             "Join mid-week and your first few days are a warm-up - get your reps in. Your first real series tips off the next Monday.")
+                        rule("flame.fill", "Comebacks happen",
+                             "Down 1-3 isn't dead. Win out and steal it 4-3.")
                     }
+
+                    Text("Everything else - game balls, photo proof, Challenge Calls, power-ups, awards, themes - is explained right where you use it.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color(white: 0.4))
 
                     XtinctBadge(accent: accent)
                         .frame(maxWidth: .infinity)

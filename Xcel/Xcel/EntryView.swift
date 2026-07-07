@@ -1,9 +1,13 @@
 import SwiftUI
 import SwiftData
+import MusicKit
+import OSLog
 
 struct EntryView: View {
     let game: Game
     let onComplete: () -> Void
+
+    private static let log = Logger(subsystem: "com.paulefrim.Xcel", category: "EntryView")
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppSettings.self) private var settings
@@ -21,9 +25,12 @@ struct EntryView: View {
     @State private var songTitle = ""
     @State private var songArtist = ""
     @State private var songAppleMusicID = ""
+    @State private var songArtwork: Artwork?
+    @State private var songPreviewURL: URL?
 
     private var accent: Color { settings.accent.color }
     private var isMorning: Bool { game.checklist.isEmpty }
+    private var songPreviewPlaying: Bool { PreviewAudio.shared.playingID == songAppleMusicID }
 
     var body: some View {
         ZStack {
@@ -48,6 +55,9 @@ struct EntryView: View {
                 songTitle = game.songTitle
                 songArtist = game.songArtist
                 songAppleMusicID = game.songAppleMusicID
+                if !songAppleMusicID.isEmpty {
+                    Task { await fetchSongArtwork(id: songAppleMusicID) }
+                }
             } else if items.isEmpty {
                 // Fresh plan - pre-load the user's recurring daily tasks so they
                 // don't re-type their staples. Fully editable from here.
@@ -55,7 +65,32 @@ struct EntryView: View {
                     .map { ChecklistItem(title: $0) }
             }
         }
-        .onDisappear { persistEveningDraft() }
+        .onDisappear {
+            persistEveningDraft()
+            PreviewAudio.shared.stop()
+        }
+    }
+
+    // Only reached when the entry screen loads a song that was picked in a
+    // previous session - Game only persists title/artist/ID, not artwork or
+    // the preview URL, so those get re-fetched from the catalog by ID here.
+    private func fetchSongArtwork(id: String) async {
+        do {
+            var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: [MusicItemID(id)])
+            request.limit = 1
+            let response = try await request.response()
+            guard let song = response.items.first else { return }
+            songArtwork = song.artwork
+            songPreviewURL = song.previewAssets?.first?.url
+        } catch {
+            // Artwork/preview are a nice-to-have here; the song is still saved
+            // either way, so a lookup failure is silently non-fatal.
+        }
+    }
+
+    private func toggleSongPreview() {
+        guard let url = songPreviewURL, !songAppleMusicID.isEmpty else { return }
+        PreviewAudio.shared.toggle(id: songAppleMusicID, url: url)
     }
 
     // Save in-progress evening proof/notes so leaving the page (e.g. before the
@@ -420,17 +455,60 @@ struct EntryView: View {
                         .font(.system(size: 10, weight: .bold))
                         .kerning(2)
                         .foregroundStyle(accent)
-                    Button { showSongPicker = true } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "music.note")
-                            Text(songTitle.isEmpty ? "Pick a song for today (optional)" : "\(songTitle) — \(songArtist)")
-                                .lineLimit(1)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
+                    HStack(spacing: 10) {
+                        if songTitle.isEmpty {
+                            Button { showSongPicker = true } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "music.note")
+                                    Text("Pick a song for today (optional)")
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color(white: 0.5))
+                            }
+                        } else {
+                            Button { toggleSongPreview() } label: {
+                                ZStack {
+                                    if let artwork = songArtwork {
+                                        ArtworkImage(artwork, width: 40, height: 40)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color(white: 0.15))
+                                            .frame(width: 40, height: 40)
+                                            .overlay(Image(systemName: "music.note").foregroundStyle(Color(white: 0.4)))
+                                    }
+                                    if songPreviewURL != nil {
+                                        Color.black.opacity(songPreviewPlaying ? 0.35 : 0)
+                                            .frame(width: 40, height: 40)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        Image(systemName: songPreviewPlaying ? "pause.fill" : "play.fill")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .opacity(songPreviewPlaying ? 1 : 0.85)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(songPreviewURL == nil)
+
+                            Button { showSongPicker = true } label: {
+                                HStack(spacing: 10) {
+                                    Text("\(songTitle) — \(songArtist)")
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(songTitle.isEmpty ? Color(white: 0.5) : .white)
                     }
                 }
                 .padding(14)
@@ -439,9 +517,12 @@ struct EntryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .sheet(isPresented: $showSongPicker) {
                     SongPickerSheet(accent: accent) { selection in
+                        PreviewAudio.shared.stop()
                         songTitle = selection.title
                         songArtist = selection.artist
                         songAppleMusicID = selection.appleMusicID
+                        songArtwork = selection.artwork
+                        songPreviewURL = selection.previewURL
                     }
                 }
 

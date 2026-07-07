@@ -11,6 +11,7 @@ struct SeriesView: View {
 
     private var accent: Color { settings.accent.color }
     private var todayGame: Game? { series.games.first { $0.isToday } }
+    private var seriesSong: SongStat? { MusicStats.seriesSong(from: series.games) }
 
     var body: some View {
         ZStack {
@@ -26,6 +27,11 @@ struct SeriesView: View {
                             SeriesRecapCard(series: series, accent: accent)
                                 .padding(.horizontal, 24)
                                 .padding(.top, 28)
+                        }
+                        if let song = seriesSong {
+                            seriesSongCard(song)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 20)
                         }
                         weekLog
                             .padding(.top, 36)
@@ -110,6 +116,42 @@ struct SeriesView: View {
         }
     }
 
+    // Most-played walkout song this series - just a play tally, not tied to
+    // performance (see MusicStats' reasoning for why win rate isn't the pick).
+    private func seriesSongCard(_ song: SongStat) -> some View {
+        HStack(spacing: 14) {
+            SongArtworkThumbnail(appleMusicID: song.id, size: 48)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("SONG OF THE SERIES")
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(2)
+                    .foregroundStyle(accent)
+                Text(song.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(song.artist)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(white: 0.5))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(song.playCount)×")
+                    .font(.system(size: 17, weight: .black))
+                    .foregroundStyle(.white)
+                if song.hasReliableWinRate {
+                    Text("\(song.wins)-\(song.losses)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(white: 0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
     private func scoreColumn(value: Int, label: String, color: Color) -> some View {
         VStack(spacing: 2) {
             Text("\(value)")
@@ -123,15 +165,46 @@ struct SeriesView: View {
         }
     }
 
+    // Tappable now: a judged day jumps straight to that GameResultView, and
+    // today's dot (while still pending) opens the entry flow - the same
+    // shortcut the CTA button already offers, just reachable from the row of
+    // dots too. A day that hasn't happened yet has nothing to show, so its
+    // dot stays inert.
     private func gameDots(series: Series) -> some View {
         let sorted = series.games.sorted { $0.gameNumber < $1.gameNumber }
-        return HStack(spacing: 6) {
+        return HStack(spacing: 4) {
             ForEach(sorted) { game in
-                Circle()
-                    .frame(width: 8, height: 8)
-                    .foregroundStyle(dotColor(for: game))
+                dotButton(for: game)
             }
         }
+    }
+
+    @ViewBuilder
+    private func dotButton(for game: Game) -> some View {
+        if game.verdict != .pending {
+            NavigationLink { GameResultView(game: game) } label: { dot(for: game) }
+                .buttonStyle(.plain)
+        } else if game.isToday {
+            Button { showEntry = true } label: { dot(for: game) }
+                .buttonStyle(.plain)
+        } else {
+            dot(for: game)
+        }
+    }
+
+    private func dot(for game: Game) -> some View {
+        ZStack {
+            if game.isToday {
+                Circle()
+                    .stroke(accent.opacity(0.55), lineWidth: 1.5)
+                    .frame(width: 14, height: 14)
+            }
+            Circle()
+                .frame(width: game.isToday ? 9 : 8, height: game.isToday ? 9 : 8)
+                .foregroundStyle(dotColor(for: game))
+        }
+        .frame(width: 22, height: 22)
+        .contentShape(Rectangle())
     }
 
     private func dotColor(for game: Game) -> Color {

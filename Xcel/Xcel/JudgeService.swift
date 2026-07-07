@@ -111,6 +111,17 @@ enum Guide: String, CaseIterable, Identifiable {
 // simulators when Apple Intelligence is enabled in macOS). Falls back to a
 // credibility-aware heuristic judge only when the model is unavailable.
 struct JudgeService {
+    // False only for hardware that can never run Apple Intelligence, no
+    // matter what Settings toggle is flipped or how long you wait for a
+    // model download. Used to hard-gate app entry, unlike practiceJudgeNote's
+    // other (recoverable) unavailable cases below.
+    static var isDeviceEligible: Bool {
+        if case .unavailable(.deviceNotEligible) = SystemLanguageModel.default.availability {
+            return false
+        }
+        return true
+    }
+
     // nil when the real on-device AI judge is ready; otherwise a short, friendly
     // line explaining why the practice judge is standing in.
     static var practiceJudgeNote: String? {
@@ -242,9 +253,22 @@ private struct MockJudge {
 
         let total = max(checklist.count, 1)
 
+        // Verbatim notes reused across multiple tasks are copy-paste, not
+        // individual evidence - neither occurrence counts as real proof.
+        let doneNotes = checklist.filter { $0.isDone }.map { $0.note.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        let reusedNotes = Set(Dictionary(grouping: doneNotes, by: { $0 }).filter { $0.value.count > 1 }.keys)
+
         // A task counts if it's checked AND backed up - either with credible text
         // proof or with a verified, same-day photo.
-        func backed(_ i: ChecklistItem) -> Bool { Credibility.isCredible(i.note) || i.photoVerified }
+        func backed(_ i: ChecklistItem) -> Bool {
+            if i.photoVerified { return true }
+            guard Credibility.isCredible(i.note) else { return false }
+            let note = i.note.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            // Restating the task title back isn't evidence of doing it.
+            if note == i.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() { return false }
+            if reusedNotes.contains(note) { return false }
+            return true
+        }
         let credited = checklist.filter { $0.isDone && backed($0) }.count
         let fakeProof = checklist.filter { $0.isDone && !backed($0) }
         let hasExtra = Credibility.isCredible(extraNotes)
@@ -375,6 +399,10 @@ enum Credibility {
 
         let words = text.split(whereSeparator: { !$0.isLetter }).filter { $0.count >= 2 }
         guard words.count >= 2 else { return false }   // needs at least a couple of real words
+
+        // Reject "done done done done" - padding one word to fake a real sentence.
+        let uniqueWords = Set(words)
+        guard Double(uniqueWords.count) / Double(words.count) > 0.5 else { return false }
 
         let letters = text.filter { $0.isLetter }
         guard !letters.isEmpty else { return false }

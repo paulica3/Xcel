@@ -39,7 +39,12 @@ struct SubmitView: View {
                     VerdictRevealView(
                         play: p,
                         accent: accent,
-                        onClimax: { p.isWin ? FX.win() : FX.loss() },
+                        onClimax: {
+                            if p.isWin { FX.winHaptic() } else { FX.lossHaptic() }
+                            WalkoutSongPlayer.play(appleMusicID: game.songAppleMusicID) {
+                                p.isWin ? FX.winAudio() : FX.lossAudio()
+                            }
+                        },
                         onFinished: revealFinished
                     )
                 }
@@ -57,6 +62,7 @@ struct SubmitView: View {
             }
         }
         .navigationBarHidden(true)
+        .onDisappear { WalkoutSongPlayer.stop() }
     }
 
     // MARK: Ready - confirm the day
@@ -244,7 +250,8 @@ struct SubmitView: View {
             // biggest moment in the app, so it trumps the usual series celebration.
             let ring = Postseason.ringClinched(by: series, in: allSeries)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
-                FX.comeback()
+                FX.comebackHaptic()
+                WalkoutSongPlayer.play(appleMusicID: game.songAppleMusicID) { FX.comebackAudio() }
                 if ring {
                     let rings = Postseason.compute(from: allSeries).rings
                     celebrationTitle = "CHAMPIONS"
@@ -271,6 +278,9 @@ struct SubmitView: View {
     private func submit() {
         errorMessage = nil
         phase = .judging
+        // Start the preview lookup now so it's cached before the verdict
+        // reveal actually needs it - hides the network round-trip.
+        WalkoutSongPlayer.prefetch(appleMusicID: game.songAppleMusicID)
         let wins = game.series?.wins ?? 0
         let losses = game.series?.losses ?? 0
         // Snapshot the memory briefing on the main actor before the async hop.

@@ -14,7 +14,11 @@ struct OnboardingView: View {
         let body: String
     }
 
-    private let slides: [Slide] = [
+    // Deliberately just the mandatory core loop - everything else (game ball,
+    // photo proof, Challenge Call, power-ups, dynasty, customization) is
+    // explained in-context on the screen where it's used, not front-loaded
+    // here. See InfoView for the same "core only" philosophy.
+    private let baseSlides: [Slide] = [
         Slide(icon: "basketball.fill",
               kicker: "THE FORMAT",
               title: "Your week is a playoff series",
@@ -22,28 +26,33 @@ struct OnboardingView: View {
         Slide(icon: "building.columns.fill",
               kicker: "THE JUDGE",
               title: "Every night, you get a verdict",
-              body: "Set a game plan in the morning - tap one task as your game ball, the one that matters most. The Judge calls the day a W or an L. Tough but fair."),
+              body: "Set a game plan in the morning, log how it went at night. The Judge calls the day a W or an L. Tough but fair."),
         Slide(icon: "clock.badge.checkmark",
               kicker: "THE WINDOW",
               title: "Prove it after 6 PM",
-              body: "Prep your plan any time, but the result only logs between 6:00 PM and 11:59 PM. Back a done task with a photo - it's checked on your phone, and proof the Judge can trust counts for more."),
+              body: "Prep your plan any time, but the result only logs between 6:00 PM and 11:59 PM."),
         Slide(icon: "flame.fill",
               kicker: "THE STAKES",
               title: "A loss isn't the end",
-              body: "Down 1-3? Storm back and steal it 4-3 - the best feeling in the game. Miss a day and it's an automatic L. Show up."),
-        Slide(icon: "flag.fill",
-              kicker: "THE CHALLENGE",
-              title: "Think a call was wrong?",
-              body: "Contest one loss a series. Own the mistake and show how you'll fix it - the Judge can overturn it into a W. Win it and you're on the hook: live out your plan next week, or you lose your challenge."),
-        Slide(icon: "trophy.circle.fill",
-              kicker: "THE LONG GAME",
-              title: "Build a dynasty",
-              body: "Win four series to raise a banner and earn a ring. Bank Momentum from your wins and spend it on power-ups. The Judge even remembers your history - it coaches like a GM who's seen every game."),
-        Slide(icon: "person.crop.circle.fill",
-              kicker: "MAKE IT YOURS",
-              title: "Set your style",
-              body: "Pick your accent color, your court theme, and your guide's voice in your profile. Set recurring daily tasks so your staples load into every plan - or draft a whole plan with AI from a one-line intention.")
+              body: "Down 1-3? Storm back and steal it 4-3. Miss a day and it's an automatic L - show up.")
     ]
+
+    // Only shown when this device won't get the real on-device AI judge. Folded
+    // into the required onboarding flow (rather than left as fine print on the
+    // submit screen) so every affected user sees it before their first entry.
+    private var practiceJudgeSlide: Slide? {
+        guard let note = JudgeService.practiceJudgeNote else { return nil }
+        return Slide(icon: "exclamationmark.triangle.fill",
+                      kicker: "HEADS UP",
+                      title: "You're getting the Practice Judge",
+                      body: "\(note) It's a solid stand-in - built from real rules about proof and effort - but it isn't true AI, so it can be more inconsistent than the real Judge. You can switch any time by enabling Apple Intelligence in Settings, if your device supports it.")
+    }
+
+    private var slides: [Slide] {
+        var s = baseSlides
+        if let extra = practiceJudgeSlide { s.append(extra) }
+        return s
+    }
 
     var body: some View {
         ZStack {
@@ -108,6 +117,11 @@ struct OnboardingView: View {
                 withAnimation { page += 1 }
             } else {
                 withAnimation { settings.hasOnboarded = true }
+                // First time notification permission is asked - deliberately
+                // held back until onboarding is actually finished, so the
+                // system alert never competes with the onboarding cover
+                // itself for the user's attention.
+                settings.setUpNotifications()
             }
         } label: {
             Text(page < slides.count - 1 ? "Next" : "Enter the arena")

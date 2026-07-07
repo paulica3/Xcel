@@ -379,6 +379,12 @@ final class AppSettings {
     var hasOnboarded: Bool {
         didSet { UserDefaults.standard.set(hasOnboarded, forKey: Keys.hasOnboarded) }
     }
+    // Shown once, right after onboarding - a skippable pitch for Sign in with
+    // Apple so the account option isn't buried three taps deep in Account.
+    // Never re-shown once seen, even if the user skips without signing in.
+    var hasSeenSignInPrompt: Bool {
+        didSet { UserDefaults.standard.set(hasSeenSignInPrompt, forKey: Keys.hasSeenSignInPrompt) }
+    }
     var notificationsEnabled: Bool {
         didSet { UserDefaults.standard.set(notificationsEnabled, forKey: Keys.notifEnabled); applySchedule() }
     }
@@ -428,6 +434,7 @@ final class AppSettings {
         static let recurringTasks = "recurringTasks"
         static let offSeasonPeriods = "offSeasonPeriods"
         static let hasOnboarded = "hasOnboarded"
+        static let hasSeenSignInPrompt = "hasSeenSignInPrompt"
         static let notifEnabled = "notifEnabled"
         static let stakesEnabled = "stakesEnabled"
         static let morningHour = "morningHour"
@@ -450,6 +457,7 @@ final class AppSettings {
         } ?? []
         self.profileImageData = Self.readAvatar()
         self.hasOnboarded = d.bool(forKey: Keys.hasOnboarded)
+        self.hasSeenSignInPrompt = d.bool(forKey: Keys.hasSeenSignInPrompt)
         self.notificationsEnabled = d.object(forKey: Keys.notifEnabled) as? Bool ?? true
         self.stakesNotificationsEnabled = d.object(forKey: Keys.stakesEnabled) as? Bool ?? true
         self.morningHour = d.object(forKey: Keys.morningHour) as? Int ?? 9

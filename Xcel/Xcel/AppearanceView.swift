@@ -13,20 +13,28 @@ struct AppearanceView: View {
         ZStack {
             Color.arenaBlack.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
+            // header sits outside the ScrollView so the close button stays
+            // reachable no matter how far the theme list is scrolled - it
+            // was previously the first item inside the ScrollView content,
+            // which scrolled it off screen and left no way to exit.
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
 
-                    Text("Pick your court. Your accent color rides on top of whichever look you choose.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color(white: 0.5))
-                        .fixedSize(horizontal: false, vertical: true)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("Pick your court. Your accent color rides on top of whichever look you choose.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color(white: 0.5))
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    ForEach(ArenaTheme.allCases) { theme in
-                        themeCard(theme)
+                        ForEach(ArenaTheme.allCases) { theme in
+                            themeCard(theme)
+                        }
                     }
+                    .padding(24)
                 }
-                .padding(24)
             }
         }
     }
@@ -43,7 +51,6 @@ struct AppearanceView: View {
                     .foregroundStyle(Color(white: 0.45))
             }
         }
-        .padding(.top, 8)
     }
 
     private func themeCard(_ theme: ArenaTheme) -> some View {

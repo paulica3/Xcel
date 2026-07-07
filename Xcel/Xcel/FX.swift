@@ -14,24 +14,36 @@ import AudioToolbox
 //   comeback → bigger, building crowd roar
 enum FX {
     static func win() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        play("win", fallbackSystemSound: 1025)
+        winHaptic()
+        winAudio()
     }
 
     static func loss() {
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
-        play("loss", fallbackSystemSound: 1053)
+        lossHaptic()
+        lossAudio()
     }
 
     static func comeback() {
+        comebackHaptic()
+        comebackAudio()
+    }
+
+    // Split out so WalkoutSongPlayer can trigger the haptic on every verdict
+    // (feel) while swapping only the audio (sound) for a picked walkout song.
+    static func winHaptic() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func lossHaptic() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+    static func comebackHaptic() {
         let heavy = UIImpactFeedbackGenerator(style: .heavy)
         heavy.impactOccurred()
         // A quick one-two for drama.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
         }
-        play("comeback", fallbackSystemSound: 1025)
     }
+
+    static func winAudio() { play("win", fallbackSystemSound: 1025) }
+    static func lossAudio() { play("loss", fallbackSystemSound: 1053) }
+    static func comebackAudio() { play("comeback", fallbackSystemSound: 1025) }
 
     // MARK: - Playback
 

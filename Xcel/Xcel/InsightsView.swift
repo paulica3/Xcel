@@ -11,6 +11,7 @@ struct InsightsView: View {
     @State private var loading = true
 
     private var accent: Color { settings.accent.color }
+    private var topSongs: [SongStat] { MusicStats.topSongs(from: allSeries) }
 
     var body: some View {
         ZStack {
@@ -110,6 +111,13 @@ struct InsightsView: View {
 
         if i.boxTrend.hasData {
             BoxTrendView(trend: i.boxTrend, accent: accent)
+        }
+
+        if !topSongs.isEmpty {
+            sectionTitle("MOST PLAYED", "music.note.list")
+            VStack(spacing: 10) {
+                ForEach(topSongs) { topSongRow($0) }
+            }
         }
 
         if !i.summary.isEmpty {
@@ -284,6 +292,36 @@ struct InsightsView: View {
             .frame(height: 6)
         }
         .padding(14)
+        .background(Color(white: 0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func topSongRow(_ song: SongStat) -> some View {
+        HStack(spacing: 12) {
+            SongArtworkThumbnail(appleMusicID: song.id, size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(song.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(song.artist)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color(white: 0.5))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(song.playCount)×")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(accent)
+                if song.hasReliableWinRate {
+                    Text("\(Int((song.winRate * 100).rounded()))% W")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+            }
+        }
+        .padding(12)
         .background(Color(white: 0.07))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }

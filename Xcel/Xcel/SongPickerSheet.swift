@@ -6,6 +6,10 @@ struct SongSelection {
     let title: String
     let artist: String
     let appleMusicID: String
+    // Handed over so the entry screen can show artwork/offer a preview
+    // without a second catalog lookup right after picking.
+    let artwork: Artwork?
+    let previewURL: URL?
 }
 
 struct SongPickerSheet: View {
@@ -54,6 +58,7 @@ struct SongPickerSheet: View {
                 await loadInitialContent()
             }
         }
+        .onDisappear { PreviewAudio.shared.stop() }
     }
 
     private var header: some View {
@@ -103,7 +108,7 @@ struct SongPickerSheet: View {
             }
             .padding(.horizontal, 24)
 
-            Text("No Apple Music subscription needed to pick a song - only to play it, which Xcel never does.")
+            Text("No Apple Music subscription needed")
                 .font(.system(size: 11))
                 .foregroundStyle(Color(white: 0.4))
                 .padding(.horizontal, 24)
@@ -131,12 +136,7 @@ struct SongPickerSheet: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(displayedTracks, id: \.id) { song in
-                            Button {
-                                onPick(SongSelection(title: song.title, artist: song.artistName, appleMusicID: song.id.rawValue))
-                                dismiss()
-                            } label: {
-                                songRow(song)
-                            }
+                            songRow(song)
                         }
                     }
                     .padding(.horizontal, 24)
@@ -177,25 +177,64 @@ struct SongPickerSheet: View {
     }
 
     private func songRow(_ song: Song) -> some View {
-        HStack(spacing: 12) {
-            if let artwork = song.artwork {
-                ArtworkImage(artwork, width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(white: 0.15))
-                    .frame(width: 44, height: 44)
-                    .overlay(Image(systemName: "music.note").foregroundStyle(Color(white: 0.4)))
+        let isPreviewing = PreviewAudio.shared.playingID == song.id.rawValue
+        let hasPreview = song.previewAssets?.first?.url != nil
+
+        return HStack(spacing: 12) {
+            Button {
+                if hasPreview { togglePreview(song) }
+            } label: {
+                ZStack {
+                    if let artwork = song.artwork {
+                        ArtworkImage(artwork, width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(white: 0.15))
+                            .frame(width: 44, height: 44)
+                            .overlay(Image(systemName: "music.note").foregroundStyle(Color(white: 0.4)))
+                    }
+                    if hasPreview {
+                        Color.black.opacity(isPreviewing ? 0.35 : 0)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        Image(systemName: isPreviewing ? "pause.fill" : "play.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .opacity(isPreviewing ? 1 : 0.85)
+                    }
+                }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(song.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                Text(song.artistName).font(.system(size: 13)).foregroundStyle(Color(white: 0.5)).lineLimit(1)
+            .buttonStyle(.plain)
+            .disabled(!hasPreview)
+
+            Button {
+                onPick(SongSelection(title: song.title, artist: song.artistName, appleMusicID: song.id.rawValue,
+                                      artwork: song.artwork, previewURL: song.previewAssets?.first?.url))
+                dismiss()
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(song.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                        Text(song.artistName).font(.system(size: 13)).foregroundStyle(Color(white: 0.5)).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(white: 0.35))
+                }
+                .contentShape(Rectangle())
             }
-            Spacer()
+            .buttonStyle(.plain)
         }
         .padding(10)
         .background(Color(white: 0.07))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func togglePreview(_ song: Song) {
+        guard let url = song.previewAssets?.first?.url else { return }
+        PreviewAudio.shared.toggle(id: song.id.rawValue, url: url)
     }
 
     private var requestPrompt: some View {
@@ -248,7 +287,7 @@ struct SongPickerSheet: View {
             recent.limit = 20
             let response = try await recent.response()
             if !response.items.isEmpty {
-                initialTracks = Array(response.items)
+                initialTracks = await Self.refreshedFromCatalog(Array(response.items))
                 initialLabel = "RECENTLY PLAYED"
                 errorMessage = nil
                 return
@@ -269,6 +308,28 @@ struct SongPickerSheet: View {
         } catch {
             Self.log.error("Catalog charts fetch failed: \(String(describing: error))")
             errorMessage = Self.describeFailure(error)
+        }
+    }
+
+    // MusicRecentlyPlayedRequest returns items from the listening-history
+    // endpoint, which doesn't reliably populate previewAssets the way a
+    // catalog search/charts response does - that's why "recently played"
+    // rows looked unclickable. Unconditionally re-fetch every one of them
+    // straight from the catalog by ID (same lookup SongArtworkThumbnail
+    // already does) and swap in those fuller objects, in original order -
+    // a partial/conditional backfill still left some rows with whatever
+    // sparse object the history endpoint handed back.
+    private static func refreshedFromCatalog(_ songs: [Song]) async -> [Song] {
+        guard !songs.isEmpty else { return songs }
+        do {
+            let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: songs.map(\.id))
+            let response = try await request.response()
+            let byID = Dictionary(uniqueKeysWithValues: response.items.map { ($0.id, $0) })
+            Self.log.info("Recently played catalog refresh: \(songs.count) requested, \(byID.count) resolved")
+            return songs.map { byID[$0.id] ?? $0 }
+        } catch {
+            Self.log.error("Recently played catalog refresh failed: \(String(describing: error))")
+            return songs
         }
     }
 

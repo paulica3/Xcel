@@ -61,13 +61,21 @@ struct ContentView: View {
             processMissedGames()
             let today = currentSeries?.games.first { $0.isToday }
             let isOffSeasonToday = OffSeasonService.isActive(settings.offSeasonPeriods, on: Date()) != nil
-            settings.setUpNotifications(
-                // Plan's set -> skip today's morning/lock nudges.
-                skipTodayMorning: today?.morningCompleted ?? false,
-                // Day's already judged -> skip today's logging/evening nudges.
-                skipTodayEvening: (today?.verdict ?? .pending) != .pending,
-                suppressAll: isOffSeasonToday
-            )
+            // Don't request notification permission on the very first launch -
+            // that system alert can appear stacked with the onboarding
+            // fullScreenCover trying to present at the same instant, which is
+            // exactly what testers reported as "a couple popups" burying
+            // onboarding. Once onboarding is done, OnboardingView's own finish
+            // action requests it instead, at a moment with nothing competing.
+            if settings.hasOnboarded {
+                settings.setUpNotifications(
+                    // Plan's set -> skip today's morning/lock nudges.
+                    skipTodayMorning: today?.morningCompleted ?? false,
+                    // Day's already judged -> skip today's logging/evening nudges.
+                    skipTodayEvening: (today?.verdict ?? .pending) != .pending,
+                    suppressAll: isOffSeasonToday
+                )
+            }
             refreshCheckups(suppressAll: isOffSeasonToday)
         }
         .task {
@@ -79,10 +87,29 @@ struct ContentView: View {
         }
         // Hold onboarding until the cold-open splash has been dismissed, so the
         // sequence reads splash -> onboarding -> home (a fullScreenCover would
-        // otherwise present above the splash overlay and hide it).
-        .fullScreenCover(isPresented: .constant(!settings.hasOnboarded && !showLaunch)) {
+        // otherwise present above the splash overlay and hide it). Ineligible
+        // hardware gets the unsupported-device screen instead of onboarding,
+        // and it takes priority - there's no path from it into the app.
+        .fullScreenCover(isPresented: .constant(!JudgeService.isDeviceEligible && !showLaunch)) {
+            UnsupportedDeviceView()
+        }
+        .fullScreenCover(isPresented: .constant(JudgeService.isDeviceEligible && !settings.hasOnboarded && !showLaunch)) {
             OnboardingView()
         }
+        // Shown exactly once, right after onboarding - skippable, and skipped
+        // entirely if the user is somehow already signed in (e.g. restored
+        // from a backup that had synced before).
+        .fullScreenCover(isPresented: .constant(
+            JudgeService.isDeviceEligible && settings.hasOnboarded && !settings.hasSeenSignInPrompt
+                && !showLaunch && !isSignedIn
+        )) {
+            WelcomeSignInView(onDone: { settings.hasSeenSignInPrompt = true })
+        }
+    }
+
+    private var isSignedIn: Bool {
+        if case .signedIn = sync.authState { return true }
+        return false
     }
 
     private func ensureCurrentSeries() {

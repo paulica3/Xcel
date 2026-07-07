@@ -90,20 +90,25 @@ struct HomeView: View {
     // MARK: Center - greeting + quote
 
     private var welcome: some View {
-        VStack(spacing: 18) {
-            Text("Welcome back,")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Color(white: 0.45))
-            + Text(" \(settings.userName)")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+        VStack(spacing: 14) {
+            let greeting: AttributedString = {
+                var s = AttributedString("Welcome back,")
+                s.font = .system(size: 20, weight: .semibold)
+                s.foregroundColor = Color(white: 0.6)
+                var name = AttributedString(" \(settings.userName)")
+                name.font = .system(size: 22, weight: .black)
+                name.foregroundColor = accent
+                s.append(name)
+                return s
+            }()
+            Text(greeting)
 
-            Text(quote)
-                .font(.system(size: 15, weight: .medium))
+            Text("\u{201C}\(quote)\u{201D}")
+                .font(.system(size: 16, weight: .semibold))
                 .italic()
-                .foregroundStyle(Color(white: 0.5))
+                .foregroundStyle(Color(white: 0.72))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 20)
         }
     }
 
